@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Activity,
   Clock,
   Files,
   HardDrive,
@@ -94,6 +95,13 @@ export function Sidebar({
         ))}
 
         <div className="space-y-0.5 pt-5">
+          <Link
+            href="/activity"
+            className={navLink("/activity", pathname === "/activity")}
+          >
+            <Activity className="h-4 w-4" />
+            Activity
+          </Link>
           <Link href="/trash" className={navLink("/trash", pathname === "/trash")}>
             <Trash2 className="h-4 w-4" />
             Trash

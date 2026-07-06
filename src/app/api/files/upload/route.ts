@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { files, folders } from "@/lib/db/schema";
 import { getStorage } from "@/lib/storage";
 import { getStorageUsed } from "@/lib/files/queries";
+import { logActivity } from "@/lib/activity/log";
 import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -102,6 +103,14 @@ export async function POST(request: Request) {
       storageKey,
     })
     .returning();
+
+  await logActivity({
+    userId,
+    action: "file.upload",
+    targetType: "file",
+    targetId: row?.id,
+    metadata: { name: filename.slice(0, 255), size: stored.size },
+  });
 
   return NextResponse.json({ file: row }, { status: 201 });
 }

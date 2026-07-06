@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, isNull, sum } from "drizzle-orm";
+import { and, eq, ilike, isNotNull, isNull, sum } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { files, folders } from "@/lib/db/schema";
 
@@ -84,4 +84,30 @@ export async function listTrash(userId: string) {
     orderBy: (f, { desc }) => [desc(f.deletedAt)],
   });
   return { folders: trashedFolders, files: trashedFiles };
+}
+
+/** Search a user's (non-trashed) files + folders by name, case-insensitive. */
+export async function searchItems(userId: string, query: string) {
+  const q = query.trim();
+  if (!q) return { folders: [], files: [] };
+  const like = `%${q}%`;
+  const folderRows = await db.query.folders.findMany({
+    where: and(
+      eq(folders.ownerId, userId),
+      isNull(folders.deletedAt),
+      ilike(folders.name, like),
+    ),
+    orderBy: (f, { asc }) => [asc(f.name)],
+    limit: 50,
+  });
+  const fileRows = await db.query.files.findMany({
+    where: and(
+      eq(files.ownerId, userId),
+      isNull(files.deletedAt),
+      ilike(files.name, like),
+    ),
+    orderBy: (f, { asc }) => [asc(f.name)],
+    limit: 100,
+  });
+  return { folders: folderRows, files: fileRows };
 }

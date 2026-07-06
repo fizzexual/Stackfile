@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { getStorageUsed } from "@/lib/files/queries";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { Sidebar } from "@/components/app/sidebar";
+import { TopbarSearch } from "@/components/app/topbar-search";
 
 export default async function AppLayout({
   children,
@@ -25,6 +26,7 @@ export default async function AppLayout({
           </span>
           Stackfile
         </Link>
+        <TopbarSearch />
         <div className="flex items-center gap-3">
           <span className="hidden text-sm text-muted sm:inline">
             {user.email}

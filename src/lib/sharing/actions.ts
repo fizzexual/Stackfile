@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { getServerSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { files, shares } from "@/lib/db/schema";
+import { logActivity } from "@/lib/activity/log";
 import {
   hashSharePassword,
   shareCookieName,
@@ -62,7 +63,15 @@ export async function createShareLink(
     .returning();
 
   if (!row) throw new Error("Failed to create share link");
+  await logActivity({
+    userId,
+    action: "share.create",
+    targetType: "file",
+    targetId: fileId,
+    metadata: { hasPassword: Boolean(row.passwordHash) },
+  });
   revalidatePath("/files");
+  revalidatePath("/activity");
   return toShareLinkDTO(row);
 }
 
@@ -71,7 +80,14 @@ export async function revokeShare(shareId: string): Promise<void> {
   await db
     .delete(shares)
     .where(and(eq(shares.id, shareId), eq(shares.ownerId, userId)));
+  await logActivity({
+    userId,
+    action: "share.revoke",
+    targetType: "share",
+    targetId: shareId,
+  });
   revalidatePath("/files");
+  revalidatePath("/activity");
 }
 
 export async function unlockShare(

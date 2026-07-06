@@ -4,83 +4,94 @@
 
 ### Self-hosted file storage, reimagined.
 
-Upload, organize, and share your files from **your own server** — with a modern,
-original interface. Think "Nextcloud Files," rebuilt from scratch on a 2026 stack.
+A modern, **dark**, self-hostable cloud drive — upload, organize, and share your
+files from **your own server**. Nextcloud-inspired, rebuilt from scratch on a
+2026 stack, and designed to run as a **single service** you can actually own.
 
-![status](https://img.shields.io/badge/status-in%20development-f59e0b)
+![status](https://img.shields.io/badge/status-active-22c55e)
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178c6?logo=typescript&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169e1?logo=postgresql&logoColor=white)
+![better-auth](https://img.shields.io/badge/better--auth-1.6-ce47eb)
 ![License](https://img.shields.io/badge/license-MIT-22c55e)
+
+[Quick start](#-quick-start) · [Self-hosting](#-self-hosting) · [Architecture](ARCHITECTURE.md) · [Roadmap](#-roadmap)
 
 </div>
 
 ---
 
-## What is Stackfile?
-
-Stackfile is a **self-hostable file storage & sharing platform**. It's not an
-office suite — it does one thing and does it deeply: **store your files on your
-own disk, organize them, and share them** — with versioning, trash, tags,
-search, granular sharing, multi-user teams, and an admin panel.
-
-It's built as a **modular monolith** so it runs as a single container next to
-Postgres + Redis, yet stays cleanly separated internally (auth · storage ·
-files · sharing · admin) so it can grow.
-
 ## ✨ Features
 
-| Area | Status |
-| --- | --- |
-| Drag-and-drop upload (chunked / resumable) & download | 🔜 P2 |
-| Folders, move/rename, browse | 🔜 P2 |
-| Trash & restore (soft delete) | 🔜 P2 |
-| Thumbnails & previews | 🔜 P2 |
-| Share links (password + expiry), user-to-user shares | 🔜 P3 |
-| Favorites, tags, file versioning, search | 🔜 P3 |
-| Multi-tenant orgs/teams, roles, quotas, admin panel | 🔜 P4 |
-| Email/password auth, 2FA, OAuth, passkeys | 🔜 P1 / P5 |
-| WebDAV, realtime notifications, full-text search | 🔜 P6 |
-| Pluggable storage backend (local disk today, S3 later) | ✅ |
+Everything below is **built and working today**:
+
+### 🗄️ Files
+- Drag-and-drop **upload** with live progress (streamed straight to disk)
+- **Download**, **folders** (create / rename), breadcrumb navigation, list & grid views
+- **Trash** — soft-delete → restore → delete-forever (with blob cleanup)
+- **Favorites**, a file **details panel**, and type-aware icons
+- **Search** across your files & folders by name
+
+### 🔗 Sharing
+- **Public share links** with optional **password** (scrypt-hashed) and **expiry**
+- Password-gated public download pages; create / list / revoke from a file's details
+
+### 👤 Accounts & security
+- **Email + password** auth ([better-auth](https://better-auth.com)), 7-day sessions
+- **Two-factor authentication** (TOTP) with QR setup + **backup codes** — login is
+  challenged and the session stays locked until the code is verified
+- **OAuth** (Google / GitHub) — activates automatically when credentials are set
+- **Settings** page: profile, change password, 2FA, connected accounts
+
+### 🛡️ Multi-user & admin
+- The **first registered user becomes the instance admin**
+- **Admin panel** — instance stats + user management (promote/demote, delete)
+- **Per-user storage quotas**, enforced on upload, with a sidebar usage bar
+
+### 📊 Audit
+- **Activity log** — uploads, folder ops, shares, trash / restore / delete, favorites
+
+## 🖼️ A look at it
+
+Stackfile is a dark, three-pane file manager — **sidebar · file list · details** —
+on a near-black `#010003` canvas with a purple → magenta → coral brand gradient.
+Clone it and run locally (below) to explore; the demo seeds a few files.
 
 ## 🧱 Tech stack
 
-- **Next.js 16** (App Router, React 19, full-stack) — ships as one self-hostable service
-- **TypeScript 6** end-to-end
-- **Tailwind CSS v4** + shadcn/ui — original design system
-- **PostgreSQL 17** + **Drizzle ORM** — type-safe schema & migrations
-- **better-auth** — email/password, 2FA, OAuth, passkeys, organizations
-- **Redis** + BullMQ — background jobs (thumbnails, indexing)
-- **Docker Compose** — one-command self-hosting
+| Layer | Choice |
+| --- | --- |
+| Framework | **Next.js 16** (App Router, React 19) — full-stack, one service |
+| Language | **TypeScript 6**, end to end |
+| Styling | **Tailwind CSS v4**, Inter + Azeret Mono |
+| Database | **PostgreSQL 17** + **Drizzle ORM** (type-safe, snake_case) |
+| Auth | **better-auth** — password, 2FA (TOTP), OAuth, sessions |
+| Storage | Pluggable `StorageProvider` — local disk today, S3-ready |
+| Infra | **Docker Compose** (Postgres + Redis + migrate + app) + GitHub Actions CI |
 
-## 🚀 Quick start (local dev)
+Built as a **modular monolith**: one deployable service, cleanly split internally
+(`auth · files · sharing · admin · activity`). See [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## 🚀 Quick start
 
 ```bash
-# 1. Install dependencies
 pnpm install
-
-# 2. Configure environment
-cp .env.example .env        # then edit as needed
-
-# 3. Start Postgres + Redis
-docker compose up -d postgres redis
-
-# 4. Run database migrations
+cp .env.example .env                   # then set BETTER_AUTH_SECRET
+docker compose up -d postgres redis    # Postgres :5544, Redis :6379
 pnpm db:migrate
-
-# 5. Start the dev server
-pnpm dev                    # → http://localhost:4000
+pnpm dev                               # → http://localhost:4000
 ```
 
-## 🐳 Self-hosting (full stack in Docker)
+> The **first account you create becomes the admin.**
+
+## 🐳 Self-hosting
 
 ```bash
-cp .env.example .env        # set a strong BETTER_AUTH_SECRET
-docker compose up -d --build
+cp .env.example .env                   # set a strong BETTER_AUTH_SECRET
+docker compose up -d --build           # Postgres + Redis + migrations + app
 ```
 
-This starts Postgres, Redis, runs migrations, and serves Stackfile on
-**http://localhost:4000**. Uploaded files live in the `storagedata` volume.
+Serves on **http://localhost:4000**; uploaded files persist in the `storagedata` volume.
 
 ## ⚙️ Configuration
 
@@ -89,39 +100,42 @@ All config is via environment variables (see [`.env.example`](.env.example)):
 | Variable | Description | Default |
 | --- | --- | --- |
 | `DATABASE_URL` | PostgreSQL connection string | — |
-| `REDIS_URL` | Redis connection string | — |
 | `BETTER_AUTH_SECRET` | Auth signing secret (`openssl rand -base64 32`) | — |
-| `STORAGE_DRIVER` | Storage backend (`local`) | `local` |
-| `STORAGE_LOCAL_PATH` | **Which disk/folder files live in** | `./storage-data` |
+| `STORAGE_LOCAL_PATH` | **Which disk / folder files live in** | `./storage-data` |
 | `STORAGE_MAX_UPLOAD_BYTES` | Max single-upload size | `5 GiB` |
+| `GITHUB_CLIENT_ID` / `_SECRET` | Enable GitHub OAuth | — |
+| `GOOGLE_CLIENT_ID` / `_SECRET` | Enable Google OAuth | — |
 
-> **Choosing where files are stored:** point `STORAGE_LOCAL_PATH` at any disk or
-> folder on the server (e.g. `D:/StackfileData` or `/mnt/bigdisk/stackfile`).
+> **Choose where files live:** point `STORAGE_LOCAL_PATH` at any disk or folder
+> (`D:/StackfileData`, `/mnt/bigdisk/stackfile`, …).
 
-## 🗂️ Project structure
+## 📁 Project structure
 
 ```
 src/
-  app/                 # Next.js routes (UI + API route handlers)
+  app/
+    (auth)/          sign in / sign up
+    (app)/           files · search · activity · trash · admin · settings
+    s/[token]/       public share pages
+    api/             upload · download · auth · public share download
   lib/
-    env.ts             # typed, validated environment
-    db/                # Drizzle schema + connection
-    storage/           # pluggable StorageProvider (local disk today)
-drizzle/               # generated SQL migrations
-docker-compose.yml     # postgres + redis + migrate + app
+    auth/  db/  storage/  files/  sharing/  admin/  activity/  env.ts
+drizzle/             generated SQL migrations
+docker-compose.yml   postgres · redis · migrate · app
 ```
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the design and key decisions.
 
 ## 🗺️ Roadmap
 
-- **P0 — Foundation** ✅ scaffold, config, storage abstraction, DB schema, Docker, CI
-- **P1 — Auth** email/password + sessions
-- **P2 — Files MVP** ⭐ upload/download/folders/trash/thumbnails
-- **P3 — Sharing** links, permissions, favorites, tags, versioning, search
-- **P4 — Teams & Admin** orgs, roles, quotas, admin panel
-- **P5 — Advanced auth** 2FA, OAuth, passkeys
-- **P6 — Flex** WebDAV, realtime, full-text search, audit logs
+| Phase | What | Status |
+| --- | --- | --- |
+| **P0** | Foundation — scaffold, config, storage, schema, Docker, CI | ✅ |
+| **P1** | Auth — email/password + sessions | ✅ |
+| **P2** | Files — upload/download/folders/trash/favorites | ✅ |
+| **P3** | Sharing — public links (password + expiry) | ✅ |
+| **P4** | Admin — panel + per-user quotas | ✅ |
+| **P5** | Advanced auth — TOTP 2FA, OAuth, settings | ✅ |
+| **P6** | Search + activity log | ✅ |
+| — | WebDAV, passkeys, organizations, versioning, realtime, content search | 🔜 |
 
 ## 📄 License
 
