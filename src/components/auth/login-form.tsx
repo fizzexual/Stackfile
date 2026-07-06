@@ -72,7 +72,7 @@ export function LoginForm() {
         No account?{" "}
         <Link
           href="/signup"
-          className="font-medium text-fuchsia-400 hover:underline"
+          className="font-medium text-brand-magenta hover:underline"
         >
           Create one
         </Link>
