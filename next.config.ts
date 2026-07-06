@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Emit a self-contained server build for lean Docker images / self-hosting.
-  output: "standalone",
+  // A custom Node server (server.js) handles WebDAV, so we don't use
+  // Next's standalone output.
 };
 
 export default nextConfig;

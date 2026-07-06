@@ -31,6 +31,7 @@ Everything below is **built and working today**:
 - **Trash** — soft-delete → restore → delete-forever (with blob cleanup)
 - **Favorites**, a file **details panel**, and type-aware icons
 - **Search** across your files & folders by name
+- **Mount as a network drive** via **WebDAV** (Finder / Explorer / mobile) — secured with a per-user app password
 
 ### 🔗 Sharing
 - **Public share links** with optional **password** (scrypt-hashed) and **expiry**
@@ -135,7 +136,8 @@ docker-compose.yml   postgres · redis · migrate · app
 | **P4** | Admin — panel + per-user quotas | ✅ |
 | **P5** | Advanced auth — TOTP 2FA, OAuth, settings | ✅ |
 | **P6** | Search + activity log | ✅ |
-| — | WebDAV, passkeys, organizations, versioning, realtime, content search | 🔜 |
+| **Flex** | **WebDAV** — mount as a network drive | ✅ |
+| — | passkeys, organizations, versioning, realtime, content search | 🔜 |
 
 ## 📄 License
 

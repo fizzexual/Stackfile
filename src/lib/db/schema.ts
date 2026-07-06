@@ -30,6 +30,7 @@ export const users = pgTable("user", {
   role: text("role").notNull().default("user"), // user | admin (instance-level)
   storageQuota: bigint("storage_quota", { mode: "number" }), // bytes; null = unlimited
   twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
+  webdavToken: text("webdav_token"), // sha-256 of the WebDAV app password; null = unset
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

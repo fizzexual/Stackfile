@@ -8,6 +8,7 @@ import { enabledOAuthProviders } from "@/lib/auth/providers";
 import { ProfileSection } from "@/components/settings/profile-section";
 import { PasswordSection } from "@/components/settings/password-section";
 import { TwoFactorSection } from "@/components/settings/two-factor-section";
+import { WebdavSection } from "@/components/settings/webdav-section";
 import { ConnectedAccounts } from "@/components/settings/connected-accounts";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -32,6 +33,10 @@ export default async function SettingsPage() {
         <ProfileSection name={user.name} email={user.email} />
         <PasswordSection />
         <TwoFactorSection enabled={user.twoFactorEnabled} />
+        <WebdavSection
+          email={user.email}
+          configured={Boolean(user.webdavToken)}
+        />
         <ConnectedAccounts
           providers={providers}
           linked={linkedRows.map((l) => l.providerId)}
