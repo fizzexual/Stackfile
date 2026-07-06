@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { iconForFile } from "./file-icon";
+import { SharePanel } from "./share-panel";
 import { formatBytes, formatRelativeTime } from "@/lib/files/format";
 import {
   createFolder,
@@ -692,9 +693,7 @@ function DetailsPanel({
           </button>
         </div>
 
-        <div className="mt-6 rounded-lg border border-dashed border-border p-4 text-center text-xs text-dim">
-          Sharing &amp; versions arrive in P3.
-        </div>
+        <SharePanel key={file.id} fileId={file.id} />
       </div>
     </aside>
   );
