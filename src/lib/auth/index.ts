@@ -1,9 +1,36 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
+import { twoFactor } from "better-auth/plugins";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
-import { accounts, sessions, users, verifications } from "@/lib/db/schema";
+import {
+  accounts,
+  sessions,
+  twoFactors,
+  users,
+  verifications,
+} from "@/lib/db/schema";
+
+/** Only enable a social provider when its credentials are configured. */
+const socialProviders = {
+  ...(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
+    ? {
+        github: {
+          clientId: env.GITHUB_CLIENT_ID,
+          clientSecret: env.GITHUB_CLIENT_SECRET,
+        },
+      }
+    : {}),
+  ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+    ? {
+        google: {
+          clientId: env.GOOGLE_CLIENT_ID,
+          clientSecret: env.GOOGLE_CLIENT_SECRET,
+        },
+      }
+    : {}),
+};
 
 export const auth = betterAuth({
   appName: "Stackfile",
@@ -16,6 +43,7 @@ export const auth = betterAuth({
       session: sessions,
       account: accounts,
       verification: verifications,
+      twoFactor: twoFactors,
     },
   }),
   user: {
@@ -29,6 +57,7 @@ export const auth = betterAuth({
     minPasswordLength: 8,
     autoSignIn: true,
   },
+  socialProviders,
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // refresh if older than 1 day
@@ -45,7 +74,7 @@ export const auth = betterAuth({
     },
   },
   // nextCookies() must be the last plugin.
-  plugins: [nextCookies()],
+  plugins: [twoFactor({ issuer: "Stackfile" }), nextCookies()],
 });
 
 export type Auth = typeof auth;

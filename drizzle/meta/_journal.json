@@ -15,6 +15,27 @@
       "when": 1783344610694,
       "tag": "0001_uneven_sentinel",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783349245845,
+      "tag": "0002_watery_titanium_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783349791250,
+      "tag": "0003_workable_prima",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783349972408,
+      "tag": "0004_red_vengeance",
+      "breakpoints": true
     }
   ]
 }

@@ -28,6 +28,12 @@ const envSchema = z.object({
     .int()
     .positive()
     .default(5_368_709_120), // 5 GiB
+
+  // OAuth (optional — providers activate only when both id + secret are set)
+  GITHUB_CLIENT_ID: z.string().optional(),
+  GITHUB_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

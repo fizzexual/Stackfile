@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Settings } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getStorageUsed } from "@/lib/files/queries";
 import { SignOutButton } from "@/components/auth/sign-out-button";
@@ -31,6 +32,13 @@ export default async function AppLayout({
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-3 text-xs font-medium text-muted">
             {initial}
           </div>
+          <Link
+            href="/settings"
+            className="rounded-md p-2 text-muted transition hover:bg-white/5 hover:text-foreground"
+            aria-label="Settings"
+          >
+            <Settings className="h-4 w-4" />
+          </Link>
           <SignOutButton />
         </div>
       </header>

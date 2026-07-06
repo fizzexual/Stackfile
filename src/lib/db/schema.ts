@@ -29,6 +29,7 @@ export const users = pgTable("user", {
   image: text("image"),
   role: text("role").notNull().default("user"), // user | admin (instance-level)
   storageQuota: bigint("storage_quota", { mode: "number" }), // bytes; null = unlimited
+  twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -71,6 +72,18 @@ export const verifications = pgTable("verification", {
   expiresAt: ts().notNull(),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
+});
+
+export const twoFactors = pgTable("two_factor", {
+  id: text("id").primaryKey(),
+  secret: text("secret").notNull(),
+  backupCodes: text("backup_codes").notNull(),
+  verified: boolean("verified").default(true),
+  failedVerificationCount: integer("failed_verification_count").default(0),
+  lockedUntil: ts(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
 });
 
 /* ───────────────────────── Storage domain ───────────────────────── */
