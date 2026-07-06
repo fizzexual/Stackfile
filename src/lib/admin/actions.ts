@@ -44,7 +44,7 @@ export async function deleteUser(userId: string) {
     where: eq(files.ownerId, userId),
     columns: { storageKey: true },
   });
-  const storage = getStorage();
+  const storage = await getStorage();
   await Promise.all(owned.map((f) => storage.delete(f.storageKey).catch(() => {})));
   await db.delete(users).where(eq(users.id, userId));
   revalidatePath("/admin");

@@ -26,7 +26,7 @@ export async function GET(
   });
   if (!version) return new Response("Not found", { status: 404 });
 
-  const storage = getStorage();
+  const storage = await getStorage();
   if (!(await storage.exists(version.storageKey))) {
     return new Response("Version data missing", { status: 404 });
   }

@@ -19,6 +19,14 @@ const ts = () => timestamp({ withTimezone: true });
 const createdAt = () => ts().notNull().defaultNow();
 const updatedAt = () => ts().notNull().defaultNow();
 
+/* ──────────────────── Instance settings (key/value) ──────────────────── */
+
+export const appSettings = pgTable("app_setting", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: updatedAt(),
+});
+
 /* ───────────────────────── Auth (better-auth) ───────────────────────── */
 
 export const users = pgTable("user", {

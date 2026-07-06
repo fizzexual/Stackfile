@@ -166,7 +166,7 @@ export async function restoreItem(kind: Kind, id: string) {
 
 export async function deleteItemForever(kind: Kind, id: string) {
   const userId = await requireUserId();
-  const storage = getStorage();
+  const storage = await getStorage();
 
   if (kind === "file") {
     const file = await db.query.files.findFirst({

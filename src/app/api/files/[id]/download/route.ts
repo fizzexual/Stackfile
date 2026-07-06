@@ -20,7 +20,7 @@ export async function GET(
   });
   if (!file) return new Response("Not found", { status: 404 });
 
-  const storage = getStorage();
+  const storage = await getStorage();
   if (!(await storage.exists(file.storageKey))) {
     return new Response("File data missing", { status: 404 });
   }

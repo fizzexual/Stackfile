@@ -60,7 +60,7 @@ export async function POST(request: Request) {
   const mimeType =
     request.headers.get("content-type") || "application/octet-stream";
   const storageKey = `${userId}/${randomUUID()}`;
-  const storage = getStorage();
+  const storage = await getStorage();
 
   // Cap the write at min(max upload size, remaining quota) so a huge or
   // over-quota body can't fill the disk before a post-hoc check.

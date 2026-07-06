@@ -2,16 +2,19 @@ import type { Metadata } from "next";
 import { Files, HardDrive, Users } from "lucide-react";
 import { requireAdmin } from "@/lib/admin/guard";
 import { getInstanceStats, listUsersWithUsage } from "@/lib/admin/queries";
+import { getStorageConfig } from "@/lib/admin/storage";
 import { formatBytes } from "@/lib/files/format";
 import { UsersTable } from "@/components/admin/users-table";
+import { StorageSettings } from "@/components/admin/storage-settings";
 
 export const metadata: Metadata = { title: "Admin" };
 
 export default async function AdminPage() {
   const me = await requireAdmin();
-  const [stats, users] = await Promise.all([
+  const [stats, users, storageConfig] = await Promise.all([
     getInstanceStats(),
     listUsersWithUsage(),
+    getStorageConfig(),
   ]);
 
   const cards = [
@@ -40,6 +43,8 @@ export default async function AdminPage() {
             </div>
           ))}
         </div>
+
+        <StorageSettings config={storageConfig} />
 
         <UsersTable users={users} currentUserId={me.id} />
       </div>

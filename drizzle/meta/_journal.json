@@ -43,6 +43,13 @@
       "when": 1783352272154,
       "tag": "0005_oval_dreaming_celestial",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783377241171,
+      "tag": "0006_solid_nextwave",
+      "breakpoints": true
     }
   ]
 }

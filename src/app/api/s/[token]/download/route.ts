@@ -26,7 +26,7 @@ export async function GET(
     if (!ok) return new Response("Password required", { status: 401 });
   }
 
-  const storage = getStorage();
+  const storage = await getStorage();
   if (!(await storage.exists(file.storageKey))) {
     return new Response("File data missing", { status: 404 });
   }

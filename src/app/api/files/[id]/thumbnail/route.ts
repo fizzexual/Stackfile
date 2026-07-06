@@ -47,7 +47,7 @@ export async function GET(
     return new Response("No thumbnail", { status: 415 });
   }
 
-  const storage = getStorage();
+  const storage = await getStorage();
   const thumbKey = `${file.storageKey}.thumb`;
 
   // Serve a cached thumbnail if one already exists.

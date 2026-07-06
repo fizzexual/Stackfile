@@ -59,7 +59,7 @@ export async function GET(request: Request, ctx: Params) {
   const r = await resolvePath(user.id, await segsOf(ctx));
   if (r.type !== "file") return new Response("Not found", { status: 404 });
 
-  const storage = getStorage();
+  const storage = await getStorage();
   if (!(await storage.exists(r.file.storageKey))) {
     return new Response("Not found", { status: 404 });
   }
@@ -99,7 +99,7 @@ export async function PUT(request: Request, ctx: Params) {
   if (!parent) return new Response("Conflict", { status: 409 });
   if (!request.body) return new Response("No body", { status: 400 });
 
-  const storage = getStorage();
+  const storage = await getStorage();
   const storageKey = `${user.id}/${randomUUID()}`;
 
   const used = user.storageQuota != null ? await getStorageUsed(user.id) : 0;
@@ -158,7 +158,7 @@ export async function DELETE(request: Request, ctx: Params) {
   if (!user) return unauthorized();
 
   const r = await resolvePath(user.id, await segsOf(ctx));
-  const storage = getStorage();
+  const storage = await getStorage();
 
   if (r.type === "file") {
     await storage.delete(r.file.storageKey).catch(() => {});
@@ -329,7 +329,7 @@ async function copy(userId: string, segs: string[], request: Request) {
 
   const r = await resolvePath(userId, segs);
   if (r.type === "file") {
-    const storage = getStorage();
+    const storage = await getStorage();
     const newKey = `${userId}/${randomUUID()}`;
     await storage.put(newKey, await storage.get(r.file.storageKey));
     await db.insert(files).values({
