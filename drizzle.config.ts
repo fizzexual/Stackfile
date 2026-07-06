@@ -7,7 +7,7 @@ export default defineConfig({
   dbCredentials: {
     url:
       process.env.DATABASE_URL ??
-      "postgres://stackfile:stackfile@localhost:5432/stackfile",
+      "postgres://stackfile:stackfile@localhost:5544/stackfile",
   },
   verbose: true,
   strict: true,

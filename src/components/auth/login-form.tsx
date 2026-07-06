@@ -27,7 +27,7 @@ export function LoginForm() {
       setLoading(false);
       return;
     }
-    router.push("/dashboard");
+    router.push("/files");
     router.refresh();
   }
 

@@ -1,0 +1,128 @@
+"use server";
+
+import { and, eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { getServerSession } from "@/lib/auth/session";
+import { db } from "@/lib/db";
+import { files, folders } from "@/lib/db/schema";
+import { getStorage } from "@/lib/storage";
+
+type Kind = "file" | "folder";
+
+async function requireUserId(): Promise<string> {
+  const session = await getServerSession();
+  if (!session) throw new Error("Unauthorized");
+  return session.user.id;
+}
+
+function revalidate() {
+  revalidatePath("/files");
+  revalidatePath("/trash");
+}
+
+export async function createFolder(name: string, parentId: string | null) {
+  const userId = await requireUserId();
+  const clean = name.trim();
+  if (!clean) throw new Error("Folder name is required");
+  await db.insert(folders).values({
+    name: clean.slice(0, 255),
+    ownerId: userId,
+    parentId: parentId ?? null,
+  });
+  revalidate();
+}
+
+export async function renameItem(kind: Kind, id: string, name: string) {
+  const userId = await requireUserId();
+  const clean = name.trim();
+  if (!clean) throw new Error("Name is required");
+  const table = kind === "folder" ? folders : files;
+  await db
+    .update(table)
+    .set({ name: clean.slice(0, 255), updatedAt: new Date() })
+    .where(and(eq(table.id, id), eq(table.ownerId, userId)));
+  revalidate();
+}
+
+export async function toggleFavorite(id: string) {
+  const userId = await requireUserId();
+  const file = await db.query.files.findFirst({
+    where: and(eq(files.id, id), eq(files.ownerId, userId)),
+    columns: { id: true, isFavorite: true },
+  });
+  if (!file) throw new Error("File not found");
+  await db
+    .update(files)
+    .set({ isFavorite: !file.isFavorite })
+    .where(eq(files.id, id));
+  revalidate();
+}
+
+export async function trashItem(kind: Kind, id: string) {
+  const userId = await requireUserId();
+  const table = kind === "folder" ? folders : files;
+  await db
+    .update(table)
+    .set({ deletedAt: new Date() })
+    .where(and(eq(table.id, id), eq(table.ownerId, userId)));
+  revalidate();
+}
+
+export async function restoreItem(kind: Kind, id: string) {
+  const userId = await requireUserId();
+  const table = kind === "folder" ? folders : files;
+  await db
+    .update(table)
+    .set({ deletedAt: null })
+    .where(and(eq(table.id, id), eq(table.ownerId, userId)));
+  revalidate();
+}
+
+export async function deleteItemForever(kind: Kind, id: string) {
+  const userId = await requireUserId();
+  const storage = getStorage();
+
+  if (kind === "file") {
+    const file = await db.query.files.findFirst({
+      where: and(eq(files.id, id), eq(files.ownerId, userId)),
+      columns: { id: true, storageKey: true },
+    });
+    if (!file) throw new Error("File not found");
+    await storage.delete(file.storageKey).catch(() => {});
+    await db.delete(files).where(eq(files.id, id));
+  } else {
+    const owned = await db.query.folders.findFirst({
+      where: and(eq(folders.id, id), eq(folders.ownerId, userId)),
+      columns: { id: true },
+    });
+    if (!owned) throw new Error("Folder not found");
+    const keys = await collectDescendantStorageKeys(userId, id);
+    await Promise.all(keys.map((k) => storage.delete(k).catch(() => {})));
+    // FK onDelete: cascade removes descendant folders + files rows.
+    await db.delete(folders).where(eq(folders.id, id));
+  }
+  revalidate();
+}
+
+/** Walk a folder subtree collecting the storage keys of every descendant file. */
+async function collectDescendantStorageKeys(
+  userId: string,
+  rootId: string,
+): Promise<string[]> {
+  const keys: string[] = [];
+  const stack: string[] = [rootId];
+  while (stack.length > 0) {
+    const current = stack.pop() as string;
+    const childFolders = await db.query.folders.findMany({
+      where: and(eq(folders.parentId, current), eq(folders.ownerId, userId)),
+      columns: { id: true },
+    });
+    for (const f of childFolders) stack.push(f.id);
+    const childFiles = await db.query.files.findMany({
+      where: and(eq(files.folderId, current), eq(files.ownerId, userId)),
+      columns: { storageKey: true },
+    });
+    for (const f of childFiles) keys.push(f.storageKey);
+  }
+  return keys;
+}

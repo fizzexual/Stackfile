@@ -28,7 +28,7 @@ export function SignupForm() {
       setLoading(false);
       return;
     }
-    router.push("/dashboard");
+    router.push("/files");
     router.refresh();
   }
 
