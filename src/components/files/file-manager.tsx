@@ -7,7 +7,9 @@ import Link from "next/link";
 import {
   ChevronRight,
   Download,
+  Eye,
   Folder as FolderIcon,
+  FolderOpen,
   FolderPlus,
   Grid2x2,
   House,
@@ -24,6 +26,9 @@ import { iconForFile } from "./file-icon";
 import { SharePanel } from "./share-panel";
 import { VersionsPanel } from "./versions-panel";
 import { TagsPanel } from "./tags-panel";
+import { ContextMenu, type MenuItem } from "./context-menu";
+import { FilePreview } from "./file-preview";
+import { previewKind } from "@/lib/files/preview";
 import { formatBytes, formatRelativeTime } from "@/lib/files/format";
 import {
   createFolder,
@@ -46,6 +51,10 @@ type Dialog =
   | { mode: "rename"; kind: "file" | "folder"; id: string; current: string }
   | null;
 
+type CtxTarget =
+  | { kind: "file"; file: FileRow }
+  | { kind: "folder"; folder: FolderRow };
+
 export function FileManager({
   currentFolderId,
   breadcrumb,
@@ -67,9 +76,86 @@ export function FileManager({
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [pending, setPending] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    target: CtxTarget;
+  } | null>(null);
+  const [preview, setPreview] = useState<FileRow | null>(null);
 
   const selectedFile = files.find((f) => f.id === selectedId) ?? null;
   const isEmpty = folders.length === 0 && files.length === 0;
+
+  const openFile = (f: FileRow) => {
+    if (previewKind(f.mimeType, f.name)) setPreview(f);
+    else window.open(`/api/files/${f.id}/download`, "_blank", "noopener");
+  };
+
+  const openMenu = (e: React.MouseEvent, target: CtxTarget) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, target });
+  };
+
+  const menuItemsFor = (target: CtxTarget): MenuItem[] => {
+    if (target.kind === "folder") {
+      const fo = target.folder;
+      return [
+        {
+          label: "Open",
+          icon: <FolderOpen className="h-4 w-4" />,
+          onClick: () => router.push(`/files?folder=${fo.id}`),
+        },
+        {
+          label: "Rename",
+          icon: <Pencil className="h-4 w-4" />,
+          onClick: () =>
+            setDialog({ mode: "rename", kind: "folder", id: fo.id, current: fo.name }),
+        },
+        { type: "divider" },
+        {
+          label: "Move to trash",
+          icon: <Trash2 className="h-4 w-4" />,
+          danger: true,
+          onClick: () => void run(() => trashItem("folder", fo.id)),
+        },
+      ];
+    }
+    const fi = target.file;
+    const canPreview = Boolean(previewKind(fi.mimeType, fi.name));
+    return [
+      {
+        label: canPreview ? "Open" : "Open in new tab",
+        icon: <Eye className="h-4 w-4" />,
+        onClick: () => openFile(fi),
+      },
+      {
+        label: "Download",
+        icon: <Download className="h-4 w-4" />,
+        href: `/api/files/${fi.id}/download`,
+      },
+      {
+        label: "Rename",
+        icon: <Pencil className="h-4 w-4" />,
+        onClick: () =>
+          setDialog({ mode: "rename", kind: "file", id: fi.id, current: fi.name }),
+      },
+      {
+        label: fi.isFavorite ? "Remove favorite" : "Favorite",
+        icon: <Star className="h-4 w-4" />,
+        onClick: () => void run(() => toggleFavorite(fi.id)),
+      },
+      { type: "divider" },
+      {
+        label: "Move to trash",
+        icon: <Trash2 className="h-4 w-4" />,
+        danger: true,
+        onClick: () => {
+          if (selectedId === fi.id) setSelectedId(null);
+          void run(() => trashItem("file", fi.id));
+        },
+      },
+    ];
+  };
 
   /* ---------------------------- uploads ---------------------------- */
 
@@ -280,6 +366,8 @@ export function FileManager({
                 setDialog({ mode: "rename", kind, id, current })
               }
               onTrash={(kind, id) => run(() => trashItem(kind, id))}
+              onContextMenu={openMenu}
+              onOpenFile={openFile}
             />
           ) : (
             <GridView
@@ -287,6 +375,8 @@ export function FileManager({
               files={files}
               selectedId={selectedId}
               onSelectFile={setSelectedId}
+              onContextMenu={openMenu}
+              onOpenFile={openFile}
             />
           )}
         </div>
@@ -393,6 +483,19 @@ export function FileManager({
           e.target.value = "";
         }}
       />
+
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={menuItemsFor(contextMenu.target)}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+
+      {preview && (
+        <FilePreview file={preview} onClose={() => setPreview(null)} />
+      )}
     </div>
   );
 }
@@ -407,6 +510,8 @@ function ListView({
   onFavorite,
   onRename,
   onTrash,
+  onContextMenu,
+  onOpenFile,
 }: {
   folders: FolderRow[];
   files: FileRow[];
@@ -415,6 +520,8 @@ function ListView({
   onFavorite: (id: string) => void;
   onRename: (kind: "file" | "folder", id: string, current: string) => void;
   onTrash: (kind: "file" | "folder", id: string) => void;
+  onContextMenu: (e: React.MouseEvent, target: CtxTarget) => void;
+  onOpenFile: (file: FileRow) => void;
 }) {
   return (
     <table className="w-full text-sm">
@@ -432,7 +539,8 @@ function ListView({
         {folders.map((f) => (
           <tr
             key={f.id}
-            className="group border-b border-border/60 hover:bg-white/[0.03]"
+            onContextMenu={(e) => onContextMenu(e, { kind: "folder", folder: f })}
+            className="group cursor-pointer border-b border-border/60 hover:bg-white/[0.03]"
           >
             <td className="px-6 py-2.5">
               <Link
@@ -463,6 +571,8 @@ function ListView({
             <tr
               key={f.id}
               onClick={() => onSelectFile(f.id)}
+              onDoubleClick={() => onOpenFile(f)}
+              onContextMenu={(e) => onContextMenu(e, { kind: "file", file: f })}
               className={cn(
                 "group cursor-pointer border-b border-border/60 hover:bg-white/[0.03]",
                 selectedId === f.id && "bg-brand-purple/10",
@@ -507,11 +617,15 @@ function GridView({
   files,
   selectedId,
   onSelectFile,
+  onContextMenu,
+  onOpenFile,
 }: {
   folders: FolderRow[];
   files: FileRow[];
   selectedId: string | null;
   onSelectFile: (id: string) => void;
+  onContextMenu: (e: React.MouseEvent, target: CtxTarget) => void;
+  onOpenFile: (file: FileRow) => void;
 }) {
   return (
     <div className="grid grid-cols-2 gap-3 p-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
@@ -519,6 +633,7 @@ function GridView({
         <Link
           key={f.id}
           href={`/files?folder=${f.id}`}
+          onContextMenu={(e) => onContextMenu(e, { kind: "folder", folder: f })}
           className="flex flex-col items-center gap-2 rounded-xl border border-border bg-surface p-4 text-center transition hover:border-white/20 hover:bg-surface-2"
         >
           <FolderIcon className="h-10 w-10 fill-brand-purple/20 text-brand-purple" />
@@ -533,6 +648,8 @@ function GridView({
           <button
             key={f.id}
             onClick={() => onSelectFile(f.id)}
+            onDoubleClick={() => onOpenFile(f)}
+            onContextMenu={(e) => onContextMenu(e, { kind: "file", file: f })}
             className={cn(
               "flex flex-col items-center gap-2 rounded-xl border border-border bg-surface p-4 text-center transition hover:border-white/20 hover:bg-surface-2",
               selectedId === f.id && "border-brand-magenta/50 bg-brand-purple/10",
