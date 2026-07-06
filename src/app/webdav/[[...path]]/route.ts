@@ -5,6 +5,9 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { files, folders } from "@/lib/db/schema";
 import { getStorage } from "@/lib/storage";
+import { byteLimit } from "@/lib/storage/limit";
+import { getStorageUsed } from "@/lib/files/queries";
+import { env } from "@/lib/env";
 import { authenticateWebdav } from "@/lib/webdav/auth";
 import { snapshotVersion } from "@/lib/files/versions";
 import {
@@ -98,10 +101,26 @@ export async function PUT(request: Request, ctx: Params) {
 
   const storage = getStorage();
   const storageKey = `${user.id}/${randomUUID()}`;
-  const stored = await storage.put(
-    storageKey,
-    Readable.fromWeb(request.body as unknown as NodeWebReadableStream),
-  );
+
+  const used = user.storageQuota != null ? await getStorageUsed(user.id) : 0;
+  const remaining =
+    user.storageQuota != null
+      ? Math.max(0, user.storageQuota - used)
+      : Number.POSITIVE_INFINITY;
+  const effectiveMax = Math.min(env.STORAGE_MAX_UPLOAD_BYTES, remaining);
+
+  let stored;
+  try {
+    stored = await storage.put(
+      storageKey,
+      Readable.fromWeb(
+        request.body as unknown as NodeWebReadableStream,
+      ).pipe(byteLimit(effectiveMax)),
+    );
+  } catch {
+    await storage.delete(storageKey).catch(() => {});
+    return new Response("Insufficient Storage", { status: 507 });
+  }
   const mime = request.headers.get("content-type") || "application/octet-stream";
 
   const existing = await db.query.files.findFirst({
@@ -165,6 +184,7 @@ export async function POST(request: Request, ctx: Params) {
   if (method === "PROPFIND") return propfind(user.id, segs, request);
   if (method === "MKCOL") return mkcol(user.id, segs);
   if (method === "MOVE") return move(user.id, segs, request);
+  if (method === "COPY") return copy(user.id, segs, request);
   return new Response("Method not allowed", { status: 405 });
 }
 
@@ -285,4 +305,42 @@ async function move(userId: string, segs: string[], request: Request) {
     return new Response(null, { status: 201 });
   }
   return new Response("Not found", { status: 404 });
+}
+
+function destinationSegments(dest: string): string[] {
+  let path: string;
+  try {
+    path = new URL(dest).pathname;
+  } catch {
+    path = dest;
+  }
+  return path
+    .replace(/^\/webdav\/?/, "")
+    .split("/")
+    .filter(Boolean)
+    .map((s) => decodeURIComponent(s));
+}
+
+async function copy(userId: string, segs: string[], request: Request) {
+  const dest = request.headers.get("destination");
+  if (!dest) return new Response("Bad request", { status: 400 });
+  const destParent = await resolveParent(userId, destinationSegments(dest));
+  if (!destParent) return new Response("Conflict", { status: 409 });
+
+  const r = await resolvePath(userId, segs);
+  if (r.type === "file") {
+    const storage = getStorage();
+    const newKey = `${userId}/${randomUUID()}`;
+    await storage.put(newKey, await storage.get(r.file.storageKey));
+    await db.insert(files).values({
+      name: destParent.name,
+      ownerId: userId,
+      folderId: destParent.parentId,
+      size: r.file.size,
+      mimeType: r.file.mimeType,
+      storageKey: newKey,
+    });
+    return new Response(null, { status: 201 });
+  }
+  return new Response("COPY of collections is not supported", { status: 501 });
 }

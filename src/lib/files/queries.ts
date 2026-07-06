@@ -1,6 +1,6 @@
 import { and, eq, ilike, isNotNull, isNull, sum } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { files, folders } from "@/lib/db/schema";
+import { fileVersions, files, folders } from "@/lib/db/schema";
 
 export type FolderRow = typeof folders.$inferSelect;
 export type FileRow = typeof files.$inferSelect;
@@ -43,13 +43,18 @@ export async function getBreadcrumb(userId: string, folderId: string | null) {
   return crumbs;
 }
 
-/** Total bytes stored by a user (excluding trash). */
+/** Total bytes stored by a user — current files + their versions (excludes trash). */
 export async function getStorageUsed(userId: string): Promise<number> {
-  const [row] = await db
+  const [current] = await db
     .select({ total: sum(files.size) })
     .from(files)
     .where(and(eq(files.ownerId, userId), isNull(files.deletedAt)));
-  return Number(row?.total ?? 0);
+  const [versions] = await db
+    .select({ total: sum(fileVersions.size) })
+    .from(fileVersions)
+    .innerJoin(files, eq(files.id, fileVersions.fileId))
+    .where(and(eq(files.ownerId, userId), isNull(files.deletedAt)));
+  return Number(current?.total ?? 0) + Number(versions?.total ?? 0);
 }
 
 /** Favorited files. */
@@ -83,7 +88,16 @@ export async function listTrash(userId: string) {
     where: and(eq(files.ownerId, userId), isNotNull(files.deletedAt)),
     orderBy: (f, { desc }) => [desc(f.deletedAt)],
   });
-  return { folders: trashedFolders, files: trashedFiles };
+  // Only show top-level trashed items (hide children of a trashed folder).
+  const trashedFolderIds = new Set(trashedFolders.map((f) => f.id));
+  return {
+    folders: trashedFolders.filter(
+      (f) => !f.parentId || !trashedFolderIds.has(f.parentId),
+    ),
+    files: trashedFiles.filter(
+      (f) => !f.folderId || !trashedFolderIds.has(f.folderId),
+    ),
+  };
 }
 
 /** Search a user's (non-trashed) files + folders by name, case-insensitive. */

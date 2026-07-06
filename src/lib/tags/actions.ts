@@ -46,11 +46,15 @@ export async function addTagToFile(
     where: and(eq(tags.ownerId, userId), eq(tags.name, clean)),
   });
   if (!tag) {
-    const [created] = await db
+    // Insert-or-ignore then re-select, so concurrent creates don't 500 on the
+    // (owner, name) unique constraint.
+    await db
       .insert(tags)
       .values({ name: clean, ownerId: userId })
-      .returning();
-    tag = created;
+      .onConflictDoNothing();
+    tag = await db.query.tags.findFirst({
+      where: and(eq(tags.ownerId, userId), eq(tags.name, clean)),
+    });
   }
   if (!tag) throw new Error("Failed to create tag");
 

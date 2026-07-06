@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
@@ -28,7 +28,12 @@ export async function authenticateWebdav(authHeader: string | null) {
 
   const user = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (!user || !user.webdavToken) return null;
-  if (hashWebdavToken(token) !== user.webdavToken) return null;
+
+  const provided = Buffer.from(hashWebdavToken(token), "hex");
+  const stored = Buffer.from(user.webdavToken, "hex");
+  if (provided.length !== stored.length || !timingSafeEqual(provided, stored)) {
+    return null;
+  }
 
   return user;
 }

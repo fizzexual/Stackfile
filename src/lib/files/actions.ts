@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
@@ -21,6 +21,27 @@ function revalidate() {
   revalidatePath("/files");
   revalidatePath("/trash");
   revalidatePath("/activity");
+}
+
+/** A folder id plus every descendant folder id (for cascade operations). */
+async function descendantFolderIds(
+  userId: string,
+  rootId: string,
+): Promise<string[]> {
+  const ids: string[] = [rootId];
+  const stack: string[] = [rootId];
+  while (stack.length > 0) {
+    const current = stack.pop() as string;
+    const kids = await db.query.folders.findMany({
+      where: and(eq(folders.parentId, current), eq(folders.ownerId, userId)),
+      columns: { id: true },
+    });
+    for (const k of kids) {
+      ids.push(k.id);
+      stack.push(k.id);
+    }
+  }
+  return ids;
 }
 
 export async function createFolder(name: string, parentId: string | null) {
@@ -70,7 +91,7 @@ export async function toggleFavorite(id: string) {
   await db
     .update(files)
     .set({ isFavorite: !file.isFavorite })
-    .where(eq(files.id, id));
+    .where(and(eq(files.id, id), eq(files.ownerId, userId)));
   await logActivity({
     userId,
     action: file.isFavorite ? "file.unfavorite" : "file.favorite",
@@ -83,22 +104,50 @@ export async function toggleFavorite(id: string) {
 
 export async function trashItem(kind: Kind, id: string) {
   const userId = await requireUserId();
-  const table = kind === "folder" ? folders : files;
-  await db
-    .update(table)
-    .set({ deletedAt: new Date() })
-    .where(and(eq(table.id, id), eq(table.ownerId, userId)));
+  const now = new Date();
+  if (kind === "folder") {
+    // Cascade: trash the folder and everything inside it.
+    const folderIds = await descendantFolderIds(userId, id);
+    await db
+      .update(folders)
+      .set({ deletedAt: now })
+      .where(and(inArray(folders.id, folderIds), eq(folders.ownerId, userId)));
+    await db
+      .update(files)
+      .set({ deletedAt: now })
+      .where(
+        and(inArray(files.folderId, folderIds), eq(files.ownerId, userId)),
+      );
+  } else {
+    await db
+      .update(files)
+      .set({ deletedAt: now })
+      .where(and(eq(files.id, id), eq(files.ownerId, userId)));
+  }
   await logActivity({ userId, action: `${kind}.trash`, targetType: kind, targetId: id });
   revalidate();
 }
 
 export async function restoreItem(kind: Kind, id: string) {
   const userId = await requireUserId();
-  const table = kind === "folder" ? folders : files;
-  await db
-    .update(table)
-    .set({ deletedAt: null })
-    .where(and(eq(table.id, id), eq(table.ownerId, userId)));
+  if (kind === "folder") {
+    const folderIds = await descendantFolderIds(userId, id);
+    await db
+      .update(folders)
+      .set({ deletedAt: null })
+      .where(and(inArray(folders.id, folderIds), eq(folders.ownerId, userId)));
+    await db
+      .update(files)
+      .set({ deletedAt: null })
+      .where(
+        and(inArray(files.folderId, folderIds), eq(files.ownerId, userId)),
+      );
+  } else {
+    await db
+      .update(files)
+      .set({ deletedAt: null })
+      .where(and(eq(files.id, id), eq(files.ownerId, userId)));
+  }
   await logActivity({
     userId,
     action: `${kind}.restore`,
@@ -148,7 +197,8 @@ export async function deleteItemForever(kind: Kind, id: string) {
   revalidate();
 }
 
-/** Walk a folder subtree collecting the storage keys of every descendant file. */
+/** Walk a folder subtree collecting the storage keys of every descendant file
+ *  (including their versions), for blob cleanup on permanent delete. */
 async function collectDescendantStorageKeys(
   userId: string,
   rootId: string,
@@ -164,9 +214,12 @@ async function collectDescendantStorageKeys(
     for (const f of childFolders) stack.push(f.id);
     const childFiles = await db.query.files.findMany({
       where: and(eq(files.folderId, current), eq(files.ownerId, userId)),
-      columns: { storageKey: true },
+      columns: { id: true, storageKey: true },
     });
-    for (const f of childFiles) keys.push(f.storageKey);
+    for (const f of childFiles) {
+      keys.push(f.storageKey);
+      keys.push(...(await versionStorageKeys(f.id)));
+    }
   }
   return keys;
 }

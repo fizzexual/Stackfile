@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { files, folders } from "@/lib/db/schema";
 import { getStorage } from "@/lib/storage";
+import { MaxSizeExceededError, byteLimit } from "@/lib/storage/limit";
 import { getStorageUsed } from "@/lib/files/queries";
 import { snapshotVersion } from "@/lib/files/versions";
 import { logActivity } from "@/lib/activity/log";
@@ -60,37 +61,45 @@ export async function POST(request: Request) {
   const storageKey = `${userId}/${randomUUID()}`;
   const storage = getStorage();
 
-  const nodeStream = Readable.fromWeb(
-    request.body as unknown as NodeWebReadableStream,
-  );
+  // Cap the write at min(max upload size, remaining quota) so a huge or
+  // over-quota body can't fill the disk before a post-hoc check.
+  const used = user.storageQuota != null ? await getStorageUsed(userId) : 0;
+  const remainingQuota =
+    user.storageQuota != null
+      ? Math.max(0, user.storageQuota - used)
+      : Number.POSITIVE_INFINITY;
+  const effectiveMax = Math.min(env.STORAGE_MAX_UPLOAD_BYTES, remainingQuota);
+
+  const declared = Number(request.headers.get("content-length") ?? "");
+  if (Number.isFinite(declared) && declared > effectiveMax) {
+    const overSize = declared > env.STORAGE_MAX_UPLOAD_BYTES;
+    return NextResponse.json(
+      {
+        error: overSize
+          ? "File exceeds the maximum allowed size"
+          : "Storage quota exceeded",
+      },
+      { status: overSize ? 413 : 507 },
+    );
+  }
 
   let stored;
   try {
-    stored = await storage.put(storageKey, nodeStream);
-  } catch {
-    return NextResponse.json(
-      { error: "Failed to store file" },
-      { status: 500 },
+    stored = await storage.put(
+      storageKey,
+      Readable.fromWeb(request.body as unknown as NodeWebReadableStream).pipe(
+        byteLimit(effectiveMax),
+      ),
     );
-  }
-
-  if (stored.size > env.STORAGE_MAX_UPLOAD_BYTES) {
+  } catch (e) {
     await storage.delete(storageKey).catch(() => {});
-    return NextResponse.json(
-      { error: "File exceeds the maximum allowed size" },
-      { status: 413 },
-    );
-  }
-
-  if (user.storageQuota != null) {
-    const used = await getStorageUsed(userId);
-    if (used + stored.size > user.storageQuota) {
-      await storage.delete(storageKey).catch(() => {});
+    if (e instanceof MaxSizeExceededError) {
       return NextResponse.json(
-        { error: "Storage quota exceeded" },
-        { status: 507 },
+        { error: "File exceeds the maximum allowed size or storage quota" },
+        { status: 413 },
       );
     }
+    return NextResponse.json({ error: "Failed to store file" }, { status: 500 });
   }
 
   const cleanName = filename.slice(0, 255);

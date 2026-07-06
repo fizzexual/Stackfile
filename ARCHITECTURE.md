@@ -39,8 +39,10 @@ separation without the operational cost.
 
 ### Why Next.js full-stack (not a separate API server)?
 One language, one build, one deploy. Route handlers stream large uploads/downloads
-just fine on a long-running Node server (we set `output: "standalone"` for lean
-images). If an independent API is ever needed, the domain logic already lives in
+just fine on a long-running Node server. We run a small **custom Node server**
+(`server.js`) that also handles WebDAV (whose non-standard HTTP methods a Next
+route handler can't receive), so the app is started with `node server.js`. If an
+independent API is ever needed, the domain logic already lives in
 framework-agnostic modules under `src/lib`.
 
 ### Storage is pluggable
