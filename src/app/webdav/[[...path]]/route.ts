@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { files, folders } from "@/lib/db/schema";
 import { getStorage } from "@/lib/storage";
 import { authenticateWebdav } from "@/lib/webdav/auth";
+import { snapshotVersion } from "@/lib/files/versions";
 import {
   collectDescendantKeys,
   listChildren,
@@ -113,7 +114,8 @@ export async function PUT(request: Request, ctx: Params) {
   });
 
   if (existing) {
-    await storage.delete(existing.storageKey).catch(() => {});
+    // Overwrite via WebDAV → snapshot the old blob as a version.
+    await snapshotVersion(existing, user.id);
     await db
       .update(files)
       .set({ size: stored.size, storageKey, mimeType: mime, updatedAt: new Date() })

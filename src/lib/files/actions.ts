@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { files, folders } from "@/lib/db/schema";
 import { getStorage } from "@/lib/storage";
 import { logActivity } from "@/lib/activity/log";
+import { versionStorageKeys } from "./versions";
 
 type Kind = "file" | "folder";
 
@@ -117,6 +118,8 @@ export async function deleteItemForever(kind: Kind, id: string) {
       columns: { id: true, storageKey: true, name: true },
     });
     if (!file) throw new Error("File not found");
+    const vKeys = await versionStorageKeys(id);
+    await Promise.all(vKeys.map((k) => storage.delete(k).catch(() => {})));
     await storage.delete(file.storageKey).catch(() => {});
     await db.delete(files).where(eq(files.id, id));
     await logActivity({

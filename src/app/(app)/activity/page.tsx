@@ -18,6 +18,8 @@ export const metadata: Metadata = { title: "Activity" };
 
 const ACTIONS: Record<string, { label: string; icon: LucideIcon; tint: string }> = {
   "file.upload": { label: "Uploaded a file", icon: UploadCloud, tint: "text-positive" },
+  "file.version": { label: "Uploaded a new version", icon: UploadCloud, tint: "text-positive" },
+  "file.restore_version": { label: "Restored a version", icon: Undo2, tint: "text-muted" },
   "folder.create": { label: "Created a folder", icon: FolderPlus, tint: "text-brand-purple" },
   "file.rename": { label: "Renamed a file", icon: Pencil, tint: "text-muted" },
   "folder.rename": { label: "Renamed a folder", icon: Pencil, tint: "text-muted" },

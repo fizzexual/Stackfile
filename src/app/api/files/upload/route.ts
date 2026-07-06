@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { files, folders } from "@/lib/db/schema";
 import { getStorage } from "@/lib/storage";
 import { getStorageUsed } from "@/lib/files/queries";
+import { snapshotVersion } from "@/lib/files/versions";
 import { logActivity } from "@/lib/activity/log";
 import { env } from "@/lib/env";
 
@@ -92,24 +93,45 @@ export async function POST(request: Request) {
     }
   }
 
-  const [row] = await db
-    .insert(files)
-    .values({
-      name: filename.slice(0, 255),
-      ownerId: userId,
-      folderId,
-      size: stored.size,
-      mimeType,
-      storageKey,
-    })
-    .returning();
+  const cleanName = filename.slice(0, 255);
+  const existing = await db.query.files.findFirst({
+    where: and(
+      eq(files.ownerId, userId),
+      folderId ? eq(files.folderId, folderId) : isNull(files.folderId),
+      eq(files.name, cleanName),
+      isNull(files.deletedAt),
+    ),
+  });
+
+  let row: typeof files.$inferSelect | undefined;
+  if (existing) {
+    // Re-upload of a same-named file → snapshot the old blob as a version.
+    await snapshotVersion(existing, userId);
+    [row] = await db
+      .update(files)
+      .set({ storageKey, size: stored.size, mimeType, updatedAt: new Date() })
+      .where(eq(files.id, existing.id))
+      .returning();
+  } else {
+    [row] = await db
+      .insert(files)
+      .values({
+        name: cleanName,
+        ownerId: userId,
+        folderId,
+        size: stored.size,
+        mimeType,
+        storageKey,
+      })
+      .returning();
+  }
 
   await logActivity({
     userId,
-    action: "file.upload",
+    action: existing ? "file.version" : "file.upload",
     targetType: "file",
     targetId: row?.id,
-    metadata: { name: filename.slice(0, 255), size: stored.size },
+    metadata: { name: cleanName, size: stored.size },
   });
 
   return NextResponse.json({ file: row }, { status: 201 });
