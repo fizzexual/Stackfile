@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const phases = [
   { id: "P0", label: "Foundation", status: "active" },
   { id: "P1", label: "Auth", status: "todo" },
@@ -42,6 +44,20 @@ export default function Home() {
             <p className="text-lg text-neutral-400">
               Self-hosted file storage, reimagined.
             </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/signup"
+              className="rounded-lg bg-gradient-to-br from-indigo-500 to-fuchsia-500 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-fuchsia-500/20 transition hover:opacity-90"
+            >
+              Get started
+            </Link>
+            <Link
+              href="/login"
+              className="rounded-lg border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-medium text-neutral-100 transition hover:bg-white/10"
+            >
+              Sign in
+            </Link>
           </div>
         </div>
 

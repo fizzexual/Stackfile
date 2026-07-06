@@ -31,3 +31,4 @@ jobs:
         run: pnpm build
         env:
           SKIP_ENV_VALIDATION: "1"
+          BETTER_AUTH_SECRET: "ci-build-placeholder-not-used-at-runtime"

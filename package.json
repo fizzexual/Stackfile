@@ -6,9 +6,9 @@
   "type": "module",
   "packageManager": "pnpm@10.6.5",
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev --turbopack -p 4000",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 4000",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
@@ -20,11 +20,16 @@
     "node": ">=20"
   },
   "dependencies": {
+    "better-auth": "^1.6.23",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
+    "lucide-react": "^1.23.0",
     "next": "^16.2.10",
     "postgres": "^3.4.9",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

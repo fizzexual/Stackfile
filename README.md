@@ -69,7 +69,7 @@ docker compose up -d postgres redis
 pnpm db:migrate
 
 # 5. Start the dev server
-pnpm dev                    # → http://localhost:3000
+pnpm dev                    # → http://localhost:4000
 ```
 
 ## 🐳 Self-hosting (full stack in Docker)
@@ -80,7 +80,7 @@ docker compose up -d --build
 ```
 
 This starts Postgres, Redis, runs migrations, and serves Stackfile on
-**http://localhost:3000**. Uploaded files live in the `storagedata` volume.
+**http://localhost:4000**. Uploaded files live in the `storagedata` volume.
 
 ## ⚙️ Configuration
 

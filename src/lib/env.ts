@@ -8,7 +8,7 @@ import { z } from "zod";
  */
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  APP_URL: z.url().default("http://localhost:3000"),
+  APP_URL: z.url().default("http://localhost:4000"),
 
   // Database
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -18,7 +18,7 @@ const envSchema = z.object({
 
   // Auth
   BETTER_AUTH_SECRET: z.string().min(1, "BETTER_AUTH_SECRET is required"),
-  BETTER_AUTH_URL: z.url().default("http://localhost:3000"),
+  BETTER_AUTH_URL: z.url().default("http://localhost:4000"),
 
   // Storage
   STORAGE_DRIVER: z.enum(["local"]).default("local"),
