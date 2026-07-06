@@ -18,7 +18,7 @@ if (env.NODE_ENV !== "production") {
   globalForDb.__stackfileClient = client;
 }
 
-export const db = drizzle(client, { schema });
+export const db = drizzle(client, { schema, casing: "snake_case" });
 export type DB = typeof db;
 
 export * as schema from "./schema";

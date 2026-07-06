@@ -8,12 +8,12 @@ CREATE TABLE "account" (
 	"access_token" text,
 	"refresh_token" text,
 	"id_token" text,
-	"accessTokenExpiresAt" timestamp with time zone,
-	"refreshTokenExpiresAt" timestamp with time zone,
+	"access_token_expires_at" timestamp with time zone,
+	"refresh_token_expires_at" timestamp with time zone,
 	"scope" text,
 	"password" text,
-	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
-	"updatedAt" timestamp with time zone DEFAULT now() NOT NULL
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "activity_log" (
@@ -24,7 +24,7 @@ CREATE TABLE "activity_log" (
 	"target_id" text,
 	"metadata" jsonb,
 	"ip_address" text,
-	"createdAt" timestamp with time zone DEFAULT now() NOT NULL
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "file_tag" (
@@ -41,7 +41,7 @@ CREATE TABLE "file_version" (
 	"storage_key" text NOT NULL,
 	"checksum" text,
 	"created_by" text,
-	"createdAt" timestamp with time zone DEFAULT now() NOT NULL
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "file" (
@@ -56,9 +56,9 @@ CREATE TABLE "file" (
 	"checksum" text,
 	"thumbnail_key" text,
 	"is_favorite" boolean DEFAULT false NOT NULL,
-	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
-	"updatedAt" timestamp with time zone DEFAULT now() NOT NULL,
-	"deletedAt" timestamp with time zone
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"deleted_at" timestamp with time zone
 );
 --> statement-breakpoint
 CREATE TABLE "folder" (
@@ -67,20 +67,20 @@ CREATE TABLE "folder" (
 	"owner_id" text NOT NULL,
 	"organization_id" text,
 	"parent_id" uuid,
-	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
-	"updatedAt" timestamp with time zone DEFAULT now() NOT NULL,
-	"deletedAt" timestamp with time zone
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"deleted_at" timestamp with time zone
 );
 --> statement-breakpoint
 CREATE TABLE "session" (
 	"id" text PRIMARY KEY NOT NULL,
 	"token" text NOT NULL,
 	"user_id" text NOT NULL,
-	"expiresAt" timestamp with time zone NOT NULL,
+	"expires_at" timestamp with time zone NOT NULL,
 	"ip_address" text,
 	"user_agent" text,
-	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
-	"updatedAt" timestamp with time zone DEFAULT now() NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "session_token_unique" UNIQUE("token")
 );
 --> statement-breakpoint
@@ -94,8 +94,8 @@ CREATE TABLE "share" (
 	"token" text,
 	"password_hash" text,
 	"shared_with_user_id" text,
-	"expiresAt" timestamp with time zone,
-	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
+	"expires_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "share_token_unique" UNIQUE("token")
 );
 --> statement-breakpoint
@@ -104,7 +104,7 @@ CREATE TABLE "tag" (
 	"name" text NOT NULL,
 	"color" text,
 	"owner_id" text NOT NULL,
-	"createdAt" timestamp with time zone DEFAULT now() NOT NULL
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "user" (
@@ -114,8 +114,8 @@ CREATE TABLE "user" (
 	"email_verified" boolean DEFAULT false NOT NULL,
 	"image" text,
 	"role" text DEFAULT 'user' NOT NULL,
-	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
-	"updatedAt" timestamp with time zone DEFAULT now() NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "user_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
@@ -123,9 +123,9 @@ CREATE TABLE "verification" (
 	"id" text PRIMARY KEY NOT NULL,
 	"identifier" text NOT NULL,
 	"value" text NOT NULL,
-	"expiresAt" timestamp with time zone NOT NULL,
-	"createdAt" timestamp with time zone DEFAULT now() NOT NULL,
-	"updatedAt" timestamp with time zone DEFAULT now() NOT NULL
+	"expires_at" timestamp with time zone NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -148,7 +148,7 @@ CREATE INDEX "activity_user_idx" ON "activity_log" USING btree ("user_id");--> s
 CREATE UNIQUE INDEX "file_version_unique" ON "file_version" USING btree ("file_id","version_number");--> statement-breakpoint
 CREATE INDEX "file_owner_idx" ON "file" USING btree ("owner_id");--> statement-breakpoint
 CREATE INDEX "file_folder_idx" ON "file" USING btree ("folder_id");--> statement-breakpoint
-CREATE INDEX "file_deleted_idx" ON "file" USING btree ("deletedAt");--> statement-breakpoint
+CREATE INDEX "file_deleted_idx" ON "file" USING btree ("deleted_at");--> statement-breakpoint
 CREATE INDEX "folder_owner_idx" ON "folder" USING btree ("owner_id");--> statement-breakpoint
 CREATE INDEX "folder_parent_idx" ON "folder" USING btree ("parent_id");--> statement-breakpoint
 CREATE INDEX "share_owner_idx" ON "share" USING btree ("owner_id");--> statement-breakpoint
