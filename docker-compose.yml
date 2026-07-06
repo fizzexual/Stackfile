@@ -1,0 +1,75 @@
+name: stackfile
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stackfile
+      POSTGRES_PASSWORD: stackfile
+      POSTGRES_DB: stackfile
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stackfile -d stackfile"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    ports:
+      - "6379:6379"
+
+  # One-shot migrations (uses the build stage which has drizzle-kit + source).
+  migrate:
+    build:
+      context: .
+      target: build
+    command: pnpm db:migrate
+    environment:
+      DATABASE_URL: postgres://stackfile:stackfile@postgres:5432/stackfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  app:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      DATABASE_URL: postgres://stackfile:stackfile@postgres:5432/stackfile
+      REDIS_URL: redis://redis:6379
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-change-me-please-use-a-long-random-string}
+      BETTER_AUTH_URL: ${APP_URL:-http://localhost:3000}
+      STORAGE_DRIVER: local
+      STORAGE_LOCAL_PATH: /data/storage
+    volumes:
+      - storagedata:/data/storage
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
+  redisdata:
+  storagedata:
