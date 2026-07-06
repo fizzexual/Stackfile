@@ -34,6 +34,9 @@ COPY --from=build --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=build --chown=nextjs:nodejs /app/next.config.ts ./next.config.ts
 COPY --from=build --chown=nextjs:nodejs /app/server.js ./server.js
 
+# Ensure the storage mount point is writable by the non-root app user.
+RUN mkdir -p /data/storage && chown -R nextjs:nodejs /data/storage
+
 USER nextjs
 EXPOSE 4000
 ENV PORT=4000
