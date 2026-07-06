@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -37,7 +37,25 @@ import {
   trashItem,
 } from "@/lib/files/actions";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/components/ui/toast";
 import type { FileRow, FolderRow } from "@/lib/files/queries";
+
+type SortKey = "name" | "size" | "modified";
+
+/** Stable sort of files/folders by the chosen column + direction. */
+function sortItems<
+  T extends { name: string; updatedAt: Date | string; size?: number },
+>(items: T[], key: SortKey, dir: "asc" | "desc"): T[] {
+  const sign = dir === "asc" ? 1 : -1;
+  return [...items].sort((a, b) => {
+    let c: number;
+    if (key === "size") c = (a.size ?? 0) - (b.size ?? 0);
+    else if (key === "modified")
+      c = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+    else c = a.name.localeCompare(b.name, undefined, { numeric: true });
+    return c * sign;
+  });
+}
 
 type Upload = {
   id: string;
@@ -67,6 +85,7 @@ export function FileManager({
   files: FileRow[];
 }) {
   const router = useRouter();
+  const toast = useToast();
   const fileInput = useRef<HTMLInputElement>(null);
   const dragDepth = useRef(0);
 
@@ -82,9 +101,26 @@ export function FileManager({
     target: CtxTarget;
   } | null>(null);
   const [preview, setPreview] = useState<FileRow | null>(null);
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({
+    key: "name",
+    dir: "asc",
+  });
 
   const selectedFile = files.find((f) => f.id === selectedId) ?? null;
   const isEmpty = folders.length === 0 && files.length === 0;
+
+  const sortedFolders = sortItems(
+    folders,
+    sort.key === "size" ? "name" : sort.key,
+    sort.dir,
+  );
+  const sortedFiles = sortItems(files, sort.key, sort.dir);
+  const toggleSort = (key: SortKey) =>
+    setSort((s) =>
+      s.key === key
+        ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: "asc" },
+    );
 
   const openFile = (f: FileRow) => {
     if (previewKind(f.mimeType, f.name)) setPreview(f);
@@ -116,7 +152,7 @@ export function FileManager({
           label: "Move to trash",
           icon: <Trash2 className="h-4 w-4" />,
           danger: true,
-          onClick: () => void run(() => trashItem("folder", fo.id)),
+          onClick: () => void run(() => trashItem("folder", fo.id), "Moved to trash"),
         },
       ];
     }
@@ -151,7 +187,7 @@ export function FileManager({
         danger: true,
         onClick: () => {
           if (selectedId === fi.id) setSelectedId(null);
-          void run(() => trashItem("file", fi.id));
+          void run(() => trashItem("file", fi.id), "Moved to trash");
         },
       },
     ];
@@ -185,6 +221,7 @@ export function FileManager({
   const handleFiles = async (list: FileList | File[]) => {
     const arr = Array.from(list);
     if (arr.length === 0) return;
+    let failed = 0;
     for (const file of arr) {
       const id = crypto.randomUUID();
       setUploads((u) => [
@@ -203,12 +240,24 @@ export function FileManager({
           ),
         );
       } catch {
+        failed += 1;
         setUploads((u) =>
           u.map((x) => (x.id === id ? { ...x, status: "error" } : x)),
         );
       }
     }
     router.refresh();
+    if (failed === 0)
+      toast({
+        title: `Uploaded ${arr.length} file${arr.length > 1 ? "s" : ""}`,
+        variant: "success",
+      });
+    else
+      toast({
+        title: `${failed} of ${arr.length} upload${arr.length > 1 ? "s" : ""} failed`,
+        description: "Check the file size and your storage quota.",
+        variant: "error",
+      });
     window.setTimeout(
       () => setUploads((u) => u.filter((x) => x.status === "uploading")),
       2800,
@@ -241,11 +290,18 @@ export function FileManager({
 
   /* ---------------------------- actions ---------------------------- */
 
-  const run = async (fn: () => Promise<void>) => {
+  const run = async (fn: () => Promise<void>, success?: string) => {
     setPending(true);
     try {
       await fn();
       router.refresh();
+      if (success) toast({ title: success, variant: "success" });
+    } catch (e) {
+      toast({
+        title: "Action failed",
+        description: e instanceof Error ? e.message : "Please try again.",
+        variant: "error",
+      });
     } finally {
       setPending(false);
     }
@@ -256,11 +312,49 @@ export function FileManager({
     if (!name || !dialog) return;
     const current = dialog;
     setDialog(null);
-    await run(async () => {
-      if (current.mode === "new-folder") await createFolder(name, currentFolderId);
-      else await renameItem(current.kind, current.id, name);
-    });
+    await run(
+      async () => {
+        if (current.mode === "new-folder")
+          await createFolder(name, currentFolderId);
+        else await renameItem(current.kind, current.id, name);
+      },
+      current.mode === "new-folder" ? "Folder created" : "Renamed",
+    );
   };
+
+  /* --------------------------- shortcuts --------------------------- */
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable)
+      )
+        return;
+      if (e.key === "Escape") {
+        if (!dialog && !preview && !contextMenu) setSelectedId(null);
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k === "u") {
+        e.preventDefault();
+        fileInput.current?.click();
+      } else if (k === "n") {
+        e.preventDefault();
+        setDialog({ mode: "new-folder" });
+      } else if (k === "g") {
+        setView("grid");
+      } else if (k === "l") {
+        setView("list");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [dialog, preview, contextMenu]);
 
   /* ---------------------------- render ----------------------------- */
 
@@ -304,6 +398,7 @@ export function FileManager({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setDialog({ mode: "new-folder" })}
+              title="New folder (N)"
               className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-foreground transition hover:bg-surface-3"
             >
               <FolderPlus className="h-4 w-4" />
@@ -311,6 +406,7 @@ export function FileManager({
             </button>
             <button
               onClick={() => fileInput.current?.click()}
+              title="Upload (U)"
               className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white transition hover:opacity-90"
               style={{
                 background:
@@ -328,6 +424,7 @@ export function FileManager({
                   view === "list" ? "bg-white/10 text-foreground" : "text-dim",
                 )}
                 aria-label="List view"
+                title="List view (L)"
               >
                 <ListIcon className="h-4 w-4" />
               </button>
@@ -338,6 +435,7 @@ export function FileManager({
                   view === "grid" ? "bg-white/10 text-foreground" : "text-dim",
                 )}
                 aria-label="Grid view"
+                title="Grid view (G)"
               >
                 <Grid2x2 className="h-4 w-4" />
               </button>
@@ -357,22 +455,26 @@ export function FileManager({
             <EmptyState onUpload={() => fileInput.current?.click()} />
           ) : view === "list" ? (
             <ListView
-              folders={folders}
-              files={files}
+              folders={sortedFolders}
+              files={sortedFiles}
               selectedId={selectedId}
               onSelectFile={setSelectedId}
               onFavorite={(id) => run(() => toggleFavorite(id))}
               onRename={(kind, id, current) =>
                 setDialog({ mode: "rename", kind, id, current })
               }
-              onTrash={(kind, id) => run(() => trashItem(kind, id))}
+              onTrash={(kind, id) =>
+                run(() => trashItem(kind, id), "Moved to trash")
+              }
               onContextMenu={openMenu}
               onOpenFile={openFile}
+              sort={sort}
+              onSort={toggleSort}
             />
           ) : (
             <GridView
-              folders={folders}
-              files={files}
+              folders={sortedFolders}
+              files={sortedFiles}
               selectedId={selectedId}
               onSelectFile={setSelectedId}
               onContextMenu={openMenu}
@@ -398,7 +500,7 @@ export function FileManager({
           }
           onTrash={() => {
             setSelectedId(null);
-            void run(() => trashItem("file", selectedFile.id));
+            void run(() => trashItem("file", selectedFile.id), "Moved to trash");
           }}
         />
       )}
@@ -512,6 +614,8 @@ function ListView({
   onTrash,
   onContextMenu,
   onOpenFile,
+  sort,
+  onSort,
 }: {
   folders: FolderRow[];
   files: FileRow[];
@@ -522,15 +626,32 @@ function ListView({
   onTrash: (kind: "file" | "folder", id: string) => void;
   onContextMenu: (e: React.MouseEvent, target: CtxTarget) => void;
   onOpenFile: (file: FileRow) => void;
+  sort: { key: SortKey; dir: "asc" | "desc" };
+  onSort: (key: SortKey) => void;
 }) {
   return (
     <table className="w-full text-sm">
       <thead>
         <tr className="border-b border-border text-left text-xs text-dim">
-          <th className="px-6 py-2 font-medium">Name</th>
-          <th className="w-28 px-3 py-2 text-right font-medium">Size</th>
+          <th className="px-6 py-2 font-medium">
+            <SortBtn label="Name" col="name" sort={sort} onSort={onSort} />
+          </th>
+          <th className="w-28 px-3 py-2 text-right font-medium">
+            <SortBtn
+              label="Size"
+              col="size"
+              sort={sort}
+              onSort={onSort}
+              align="right"
+            />
+          </th>
           <th className="hidden w-40 px-3 py-2 font-medium sm:table-cell">
-            Modified
+            <SortBtn
+              label="Modified"
+              col="modified"
+              sort={sort}
+              onSort={onSort}
+            />
           </th>
           <th className="w-32 px-6 py-2" />
         </tr>
@@ -668,6 +789,44 @@ function GridView({
 }
 
 /* ============================ small pieces ============================ */
+
+function SortBtn({
+  label,
+  col,
+  sort,
+  onSort,
+  align,
+}: {
+  label: string;
+  col: SortKey;
+  sort: { key: SortKey; dir: "asc" | "desc" };
+  onSort: (key: SortKey) => void;
+  align?: "right";
+}) {
+  const active = sort.key === col;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(col)}
+      className={cn(
+        "inline-flex items-center gap-1 rounded px-1 py-0.5 uppercase tracking-wide transition hover:text-foreground",
+        active && "text-foreground",
+        align === "right" && "flex-row-reverse",
+      )}
+      aria-label={`Sort by ${label}`}
+    >
+      {label}
+      <span
+        className={cn(
+          "text-[9px] leading-none",
+          active ? "opacity-100" : "opacity-0",
+        )}
+      >
+        {sort.dir === "asc" ? "▲" : "▼"}
+      </span>
+    </button>
+  );
+}
 
 function RowActions({
   fileId,

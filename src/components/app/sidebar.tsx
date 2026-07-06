@@ -19,8 +19,8 @@ import { formatBytes } from "@/lib/files/format";
 
 const primary = [
   { href: "/files", label: "All files", icon: Files, enabled: true },
-  { href: "/favorites", label: "Favorites", icon: Star, enabled: false },
-  { href: "/recent", label: "Recent", icon: Clock, enabled: false },
+  { href: "/favorites", label: "Favorites", icon: Star, enabled: true },
+  { href: "/recent", label: "Recent", icon: Clock, enabled: true },
 ];
 
 const shares = [

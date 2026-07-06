@@ -6,6 +6,7 @@ import { getStorageUsed } from "@/lib/files/queries";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { Sidebar } from "@/components/app/sidebar";
 import { TopbarSearch } from "@/components/app/topbar-search";
+import { ToastProvider } from "@/components/ui/toast";
 
 export default async function AppLayout({
   children,
@@ -18,6 +19,7 @@ export default async function AppLayout({
   const initial = (user.name || user.email).slice(0, 1).toUpperCase();
 
   return (
+    <ToastProvider>
     <div className="flex h-screen flex-col bg-background text-foreground">
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
         <Link href="/files" className="flex items-center gap-2 font-semibold">
@@ -53,5 +55,6 @@ export default async function AppLayout({
         <div className="min-w-0 flex-1">{children}</div>
       </div>
     </div>
+    </ToastProvider>
   );
 }
