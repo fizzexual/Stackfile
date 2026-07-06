@@ -2,12 +2,14 @@
 
 import { randomBytes } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { files, shares } from "@/lib/db/schema";
 import { logActivity } from "@/lib/activity/log";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { shareOptionsSchema } from "@/lib/validation";
 import {
   hashSharePassword,
   shareCookieName,
@@ -45,9 +47,11 @@ export async function createShareLink(
   });
   if (!file) throw new Error("File not found");
 
+  const parsedOpts = shareOptionsSchema.safeParse(opts);
+  if (!parsedOpts.success) throw new Error("Invalid share options");
   const token = randomBytes(18).toString("base64url");
-  const password = opts.password?.trim();
-  const days = opts.expiresInDays ?? 0;
+  const password = parsedOpts.data.password?.trim();
+  const days = parsedOpts.data.expiresInDays ?? 0;
 
   const [row] = await db
     .insert(shares)
@@ -94,6 +98,10 @@ export async function unlockShare(
   token: string,
   password: string,
 ): Promise<{ ok: boolean }> {
+  // Rate-limit password attempts per IP + share to stop brute-forcing.
+  const rl = await rateLimit(`unlock:${clientIp(await headers())}:${token}`, 8, 60);
+  if (!rl.allowed) return { ok: false };
+
   const data = await getShareWithFile(token);
   if (!data || !data.share.passwordHash) return { ok: false };
   if (data.share.expiresAt && data.share.expiresAt < new Date()) {

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { fileTags, files, tags } from "@/lib/db/schema";
+import { tagNameSchema } from "@/lib/validation";
 
 export type TagDTO = { id: string; name: string; color: string | null };
 
@@ -39,8 +40,11 @@ export async function addTagToFile(
 ): Promise<TagDTO> {
   const userId = await requireUserId();
   await ensureOwnFile(userId, fileId);
-  const clean = name.trim().slice(0, 60);
-  if (!clean) throw new Error("Tag name is required");
+  const parsed = tagNameSchema.safeParse(name);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "Invalid tag");
+  }
+  const clean = parsed.data;
 
   let tag = await db.query.tags.findFirst({
     where: and(eq(tags.ownerId, userId), eq(tags.name, clean)),

@@ -62,6 +62,17 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // refresh if older than 1 day
   },
+  rateLimit: {
+    enabled: true,
+    window: 60,
+    max: 100,
+    customRules: {
+      "/sign-in/email": { window: 60, max: 10 },
+      "/sign-up/email": { window: 300, max: 10 },
+      "/two-factor/verify-totp": { window: 60, max: 10 },
+      "/two-factor/enable": { window: 60, max: 10 },
+    },
+  },
   databaseHooks: {
     user: {
       create: {

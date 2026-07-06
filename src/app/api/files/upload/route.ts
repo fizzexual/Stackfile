@@ -11,6 +11,7 @@ import { MaxSizeExceededError, byteLimit } from "@/lib/storage/limit";
 import { getStorageUsed } from "@/lib/files/queries";
 import { snapshotVersion } from "@/lib/files/versions";
 import { logActivity } from "@/lib/activity/log";
+import { sanitizeFilename } from "@/lib/validation";
 import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -102,7 +103,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to store file" }, { status: 500 });
   }
 
-  const cleanName = filename.slice(0, 255);
+  const cleanName = sanitizeFilename(filename);
   const existing = await db.query.files.findFirst({
     where: and(
       eq(files.ownerId, userId),

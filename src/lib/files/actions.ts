@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { files, folders } from "@/lib/db/schema";
 import { getStorage } from "@/lib/storage";
 import { logActivity } from "@/lib/activity/log";
+import { fileOrFolderName } from "@/lib/validation";
 import { versionStorageKeys } from "./versions";
 
 type Kind = "file" | "folder";
@@ -46,8 +47,11 @@ async function descendantFolderIds(
 
 export async function createFolder(name: string, parentId: string | null) {
   const userId = await requireUserId();
-  const clean = name.trim().slice(0, 255);
-  if (!clean) throw new Error("Folder name is required");
+  const parsed = fileOrFolderName.safeParse(name);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "Invalid folder name");
+  }
+  const clean = parsed.data;
   await db.insert(folders).values({
     name: clean,
     ownerId: userId,
@@ -64,8 +68,11 @@ export async function createFolder(name: string, parentId: string | null) {
 
 export async function renameItem(kind: Kind, id: string, name: string) {
   const userId = await requireUserId();
-  const clean = name.trim().slice(0, 255);
-  if (!clean) throw new Error("Name is required");
+  const parsed = fileOrFolderName.safeParse(name);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "Invalid name");
+  }
+  const clean = parsed.data;
   const table = kind === "folder" ? folders : files;
   await db
     .update(table)
