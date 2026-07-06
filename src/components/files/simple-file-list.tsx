@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import { Download, Star } from "lucide-react";
-import { iconForFile } from "./file-icon";
+import { FileThumb } from "./file-thumb";
 import { FilePreview } from "./file-preview";
 import { previewKind } from "@/lib/files/preview";
 import { formatBytes, formatRelativeTime } from "@/lib/files/format";
-import { cn } from "@/lib/utils";
 import type { FileRow } from "@/lib/files/queries";
 
 /** Read-only flat list of files (Favorites / Recent) with click-to-preview. */
@@ -43,7 +42,6 @@ export function SimpleFileList({
         </thead>
         <tbody>
           {files.map((f) => {
-            const { Icon, tint } = iconForFile(f.name, f.mimeType);
             return (
               <tr
                 key={f.id}
@@ -55,7 +53,12 @@ export function SimpleFileList({
                     onClick={() => open(f)}
                     className="flex max-w-full items-center gap-3 text-left"
                   >
-                    <Icon className={cn("h-5 w-5 shrink-0", tint)} />
+                    <FileThumb
+                      id={f.id}
+                      name={f.name}
+                      mimeType={f.mimeType}
+                      variant="list"
+                    />
                     <span className="truncate font-medium text-foreground">
                       {f.name}
                     </span>

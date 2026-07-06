@@ -177,6 +177,7 @@ export async function deleteItemForever(kind: Kind, id: string) {
     const vKeys = await versionStorageKeys(id);
     await Promise.all(vKeys.map((k) => storage.delete(k).catch(() => {})));
     await storage.delete(file.storageKey).catch(() => {});
+    await storage.delete(`${file.storageKey}.thumb`).catch(() => {});
     await db.delete(files).where(eq(files.id, id));
     await logActivity({
       userId,
@@ -225,6 +226,7 @@ async function collectDescendantStorageKeys(
     });
     for (const f of childFiles) {
       keys.push(f.storageKey);
+      keys.push(`${f.storageKey}.thumb`);
       keys.push(...(await versionStorageKeys(f.id)));
     }
   }

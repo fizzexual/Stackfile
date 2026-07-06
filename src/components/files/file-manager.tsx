@@ -22,7 +22,7 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
-import { iconForFile } from "./file-icon";
+import { FileThumb } from "./file-thumb";
 import { SharePanel } from "./share-panel";
 import { VersionsPanel } from "./versions-panel";
 import { TagsPanel } from "./tags-panel";
@@ -687,7 +687,6 @@ function ListView({
           </tr>
         ))}
         {files.map((f) => {
-          const { Icon, tint } = iconForFile(f.name, f.mimeType);
           return (
             <tr
               key={f.id}
@@ -701,7 +700,12 @@ function ListView({
             >
               <td className="px-6 py-2.5">
                 <div className="flex items-center gap-3">
-                  <Icon className={cn("h-5 w-5 shrink-0", tint)} />
+                  <FileThumb
+                    id={f.id}
+                    name={f.name}
+                    mimeType={f.mimeType}
+                    variant="list"
+                  />
                   <span className="truncate font-medium text-foreground">
                     {f.name}
                   </span>
@@ -749,41 +753,75 @@ function GridView({
   onOpenFile: (file: FileRow) => void;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-3 p-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-      {folders.map((f) => (
-        <Link
-          key={f.id}
-          href={`/files?folder=${f.id}`}
-          onContextMenu={(e) => onContextMenu(e, { kind: "folder", folder: f })}
-          className="flex flex-col items-center gap-2 rounded-xl border border-border bg-surface p-4 text-center transition hover:border-white/20 hover:bg-surface-2"
-        >
-          <FolderIcon className="h-10 w-10 fill-brand-purple/20 text-brand-purple" />
-          <span className="w-full truncate text-sm font-medium text-foreground">
-            {f.name}
-          </span>
-        </Link>
-      ))}
-      {files.map((f) => {
-        const { Icon, tint } = iconForFile(f.name, f.mimeType);
-        return (
-          <button
-            key={f.id}
-            onClick={() => onSelectFile(f.id)}
-            onDoubleClick={() => onOpenFile(f)}
-            onContextMenu={(e) => onContextMenu(e, { kind: "file", file: f })}
-            className={cn(
-              "flex flex-col items-center gap-2 rounded-xl border border-border bg-surface p-4 text-center transition hover:border-white/20 hover:bg-surface-2",
-              selectedId === f.id && "border-brand-magenta/50 bg-brand-purple/10",
-            )}
-          >
-            <Icon className={cn("h-10 w-10", tint)} />
-            <span className="w-full truncate text-sm font-medium text-foreground">
-              {f.name}
-            </span>
-            <span className="text-xs text-dim">{formatBytes(f.size)}</span>
-          </button>
-        );
-      })}
+    <div className="space-y-6 p-6">
+      {folders.length > 0 && (
+        <section>
+          <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-dim">
+            Folders
+          </h3>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {folders.map((f) => (
+              <Link
+                key={f.id}
+                href={`/files?folder=${f.id}`}
+                onContextMenu={(e) =>
+                  onContextMenu(e, { kind: "folder", folder: f })
+                }
+                className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3 transition hover:border-white/20 hover:bg-surface-2"
+              >
+                <FolderIcon className="h-8 w-8 shrink-0 fill-brand-purple/20 text-brand-purple" />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {f.name}
+                  </p>
+                  <p className="truncate text-xs text-dim">
+                    {formatRelativeTime(f.updatedAt)}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {files.length > 0 && (
+        <section>
+          <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-dim">
+            Files
+          </h3>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {files.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => onSelectFile(f.id)}
+                onDoubleClick={() => onOpenFile(f)}
+                onContextMenu={(e) => onContextMenu(e, { kind: "file", file: f })}
+                className={cn(
+                  "group flex flex-col gap-2 rounded-xl border border-border bg-surface p-2.5 text-left transition hover:border-white/20 hover:bg-surface-2",
+                  selectedId === f.id &&
+                    "border-brand-magenta/50 bg-brand-purple/10",
+                )}
+              >
+                <FileThumb
+                  id={f.id}
+                  name={f.name}
+                  mimeType={f.mimeType}
+                  variant="grid"
+                />
+                <div className="min-w-0 px-0.5 pb-0.5">
+                  <p className="flex items-center gap-1 text-sm font-medium text-foreground">
+                    <span className="truncate">{f.name}</span>
+                    {f.isFavorite && (
+                      <Star className="h-3 w-3 shrink-0 fill-brand-coral text-brand-coral" />
+                    )}
+                  </p>
+                  <p className="text-xs text-dim">{formatBytes(f.size)}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
@@ -907,7 +945,6 @@ function DetailsPanel({
   onRename: () => void;
   onTrash: () => void;
 }) {
-  const { Icon, tint } = iconForFile(file.name, file.mimeType);
   return (
     <aside className="hidden w-80 shrink-0 flex-col border-l border-border bg-surface md:flex">
       <div className="flex items-center justify-between border-b border-border px-5 py-4">
@@ -924,8 +961,13 @@ function DetailsPanel({
       </div>
 
       <div className="scroll-thin flex-1 overflow-auto px-5 py-5">
-        <div className="mb-5 flex items-center justify-center rounded-xl border border-border bg-surface-2 py-10">
-          <Icon className={cn("h-16 w-16", tint)} />
+        <div className="mb-5">
+          <FileThumb
+            id={file.id}
+            name={file.name}
+            mimeType={file.mimeType}
+            variant="grid"
+          />
         </div>
 
         <dl className="space-y-3 text-sm">
