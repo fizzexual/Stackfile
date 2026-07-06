@@ -755,9 +755,9 @@ function PromptDialog({
       >
         <h2 className="mb-4 text-base font-semibold text-foreground">{title}</h2>
         <label className="mb-1.5 block text-sm text-muted">{label}</label>
-        {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
         <input
           autoFocus
+          aria-label={label}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           className="mb-5 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-brand-magenta/50 focus:outline-none"
