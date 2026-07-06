@@ -28,6 +28,7 @@ export const users = pgTable("user", {
   emailVerified: boolean("email_verified").notNull().default(false),
   image: text("image"),
   role: text("role").notNull().default("user"), // user | admin (instance-level)
+  storageQuota: bigint("storage_quota", { mode: "number" }), // bytes; null = unlimited
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

@@ -18,6 +18,12 @@ export const auth = betterAuth({
       verification: verifications,
     },
   }),
+  user: {
+    additionalFields: {
+      role: { type: "string", required: false, input: false },
+      storageQuota: { type: "number", required: false, input: false },
+    },
+  },
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
@@ -26,6 +32,17 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // refresh if older than 1 day
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        // The very first registered user becomes the instance admin.
+        before: async (user) => {
+          const total = await db.$count(users);
+          return { data: { ...user, role: total === 0 ? "admin" : "user" } };
+        },
+      },
+    },
   },
   // nextCookies() must be the last plugin.
   plugins: [nextCookies()],

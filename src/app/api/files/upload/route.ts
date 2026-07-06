@@ -3,10 +3,11 @@ import { Readable } from "node:stream";
 import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
 import { NextResponse } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
-import { getServerSession } from "@/lib/auth/session";
+import { getCurrentUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { files, folders } from "@/lib/db/schema";
 import { getStorage } from "@/lib/storage";
+import { getStorageUsed } from "@/lib/files/queries";
 import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -16,11 +17,11 @@ export const runtime = "nodejs";
  * from the `x-filename` header and the destination folder from `?folderId=`.
  */
 export async function POST(request: Request) {
-  const session = await getServerSession();
-  if (!session) {
+  const user = await getCurrentUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const userId = session.user.id;
+  const userId = user.id;
 
   const { searchParams } = new URL(request.url);
   const folderId = searchParams.get("folderId") || null;
@@ -77,6 +78,17 @@ export async function POST(request: Request) {
       { error: "File exceeds the maximum allowed size" },
       { status: 413 },
     );
+  }
+
+  if (user.storageQuota != null) {
+    const used = await getStorageUsed(userId);
+    if (used + stored.size > user.storageQuota) {
+      await storage.delete(storageKey).catch(() => {});
+      return NextResponse.json(
+        { error: "Storage quota exceeded" },
+        { status: 507 },
+      );
+    }
   }
 
   const [row] = await db
