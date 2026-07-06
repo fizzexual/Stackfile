@@ -26,7 +26,6 @@ const primary = [
 const shares = [
   { label: "Shared with you", icon: Users },
   { label: "Shared by link", icon: Link2 },
-  { label: "Tags", icon: Tag },
 ];
 
 export function Sidebar({
@@ -95,6 +94,10 @@ export function Sidebar({
         ))}
 
         <div className="space-y-0.5 pt-5">
+          <Link href="/tags" className={navLink("/tags", pathname === "/tags")}>
+            <Tag className="h-4 w-4" />
+            Tags
+          </Link>
           <Link
             href="/activity"
             className={navLink("/activity", pathname === "/activity")}

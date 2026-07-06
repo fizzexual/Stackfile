@@ -23,6 +23,7 @@ import {
 import { iconForFile } from "./file-icon";
 import { SharePanel } from "./share-panel";
 import { VersionsPanel } from "./versions-panel";
+import { TagsPanel } from "./tags-panel";
 import { formatBytes, formatRelativeTime } from "@/lib/files/format";
 import {
   createFolder,
@@ -694,6 +695,7 @@ function DetailsPanel({
           </button>
         </div>
 
+        <TagsPanel key={`t-${file.id}`} fileId={file.id} />
         <SharePanel key={file.id} fileId={file.id} />
         <VersionsPanel key={`v-${file.id}`} fileId={file.id} />
       </div>
