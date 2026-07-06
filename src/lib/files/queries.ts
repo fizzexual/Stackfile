@@ -1,4 +1,4 @@
-import { and, eq, ilike, isNotNull, isNull, sum } from "drizzle-orm";
+import { and, desc, eq, ilike, isNotNull, isNull, sql, sum } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { fileVersions, files, folders } from "@/lib/db/schema";
 
@@ -75,6 +75,18 @@ export async function listRecent(userId: string, limit = 50) {
     where: and(eq(files.ownerId, userId), isNull(files.deletedAt)),
     orderBy: (f, { desc }) => [desc(f.updatedAt)],
     limit,
+  });
+}
+
+/** All of a user's images, newest first — EXIF date-taken, else upload date. */
+export async function listImages(userId: string): Promise<FileRow[]> {
+  return db.query.files.findMany({
+    where: and(
+      eq(files.ownerId, userId),
+      isNull(files.deletedAt),
+      ilike(files.mimeType, "image/%"),
+    ),
+    orderBy: [desc(sql`coalesce(${files.takenAt}, ${files.createdAt})`)],
   });
 }
 

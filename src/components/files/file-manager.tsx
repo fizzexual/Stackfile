@@ -15,6 +15,7 @@ import {
   House,
   List as ListIcon,
   Loader2,
+  MapPin,
   Pencil,
   Star,
   Trash2,
@@ -38,6 +39,7 @@ import {
 } from "@/lib/files/actions";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast";
+import type { ImageMeta } from "@/lib/files/image-meta";
 import type { FileRow, FolderRow } from "@/lib/files/queries";
 
 type SortKey = "name" | "size" | "modified";
@@ -977,6 +979,10 @@ function DetailsPanel({
           <Meta label="Added" value={formatRelativeTime(file.createdAt)} />
         </dl>
 
+        {file.metadata && (
+          <ExifInfo meta={file.metadata} takenAt={file.takenAt} />
+        )}
+
         <div className="mt-6 flex flex-wrap gap-2">
           <a
             href={`/api/files/${file.id}/download`}
@@ -1041,6 +1047,60 @@ function Meta({
       >
         {value}
       </dd>
+    </div>
+  );
+}
+
+function ExifInfo({
+  meta,
+  takenAt,
+}: {
+  meta: ImageMeta;
+  takenAt: Date | string | null;
+}) {
+  const settings = [
+    meta.fNumber != null ? `ƒ/${meta.fNumber}` : null,
+    meta.exposure || null,
+    meta.iso != null ? `ISO ${meta.iso}` : null,
+    meta.focalLength != null ? `${meta.focalLength}mm` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const camera = [meta.make, meta.model].filter(Boolean).join(" ");
+  const hasAny =
+    (meta.width && meta.height) ||
+    camera ||
+    takenAt ||
+    settings ||
+    (meta.lat != null && meta.lng != null);
+  if (!hasAny) return null;
+
+  return (
+    <div className="mt-5 border-t border-border pt-4">
+      <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-dim">
+        Photo info
+      </p>
+      <dl className="space-y-3 text-sm">
+        {meta.width && meta.height ? (
+          <Meta label="Dimensions" value={`${meta.width} × ${meta.height}`} />
+        ) : null}
+        {takenAt && (
+          <Meta label="Taken" value={new Date(takenAt).toLocaleString()} />
+        )}
+        {camera && <Meta label="Camera" value={camera} />}
+        {meta.lens && <Meta label="Lens" value={meta.lens} />}
+        {settings && <Meta label="Settings" value={settings} />}
+      </dl>
+      {meta.lat != null && meta.lng != null && (
+        <a
+          href={`https://www.openstreetmap.org/?mlat=${meta.lat}&mlon=${meta.lng}#map=15/${meta.lat}/${meta.lng}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex items-center gap-1.5 text-xs text-brand-magenta hover:underline"
+        >
+          <MapPin className="h-3.5 w-3.5" /> View location
+        </a>
+      )}
     </div>
   );
 }

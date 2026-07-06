@@ -12,6 +12,8 @@ import { getStorageUsed } from "@/lib/files/queries";
 import { snapshotVersion } from "@/lib/files/versions";
 import { logActivity } from "@/lib/activity/log";
 import { sanitizeFilename } from "@/lib/validation";
+import { extractImageMeta } from "@/lib/files/exif";
+import type { ImageMeta } from "@/lib/files/image-meta";
 import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -103,6 +105,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to store file" }, { status: 500 });
   }
 
+  // Extract image dimensions + EXIF for the Photos timeline (best-effort).
+  let takenAt: Date | null = null;
+  let metadata: ImageMeta | null = null;
+  if (mimeType.startsWith("image/")) {
+    try {
+      const chunks: Buffer[] = [];
+      for await (const c of await storage.get(storageKey)) {
+        chunks.push(c as Buffer);
+      }
+      metadata = await extractImageMeta(Buffer.concat(chunks));
+      if (metadata?.takenAt) takenAt = new Date(metadata.takenAt);
+    } catch {
+      /* metadata is best-effort */
+    }
+  }
+
   const cleanName = sanitizeFilename(filename);
   const existing = await db.query.files.findFirst({
     where: and(
@@ -119,7 +137,14 @@ export async function POST(request: Request) {
     await snapshotVersion(existing, userId);
     [row] = await db
       .update(files)
-      .set({ storageKey, size: stored.size, mimeType, updatedAt: new Date() })
+      .set({
+        storageKey,
+        size: stored.size,
+        mimeType,
+        takenAt,
+        metadata,
+        updatedAt: new Date(),
+      })
       .where(eq(files.id, existing.id))
       .returning();
   } else {
@@ -132,6 +157,8 @@ export async function POST(request: Request) {
         size: stored.size,
         mimeType,
         storageKey,
+        takenAt,
+        metadata,
       })
       .returning();
   }

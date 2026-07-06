@@ -14,6 +14,7 @@ import {
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+import type { ImageMeta } from "@/lib/files/image-meta";
 
 const ts = () => timestamp({ withTimezone: true });
 const createdAt = () => ts().notNull().defaultNow();
@@ -137,6 +138,8 @@ export const files = pgTable(
     checksum: text("checksum"), // sha-256 hex
     thumbnailKey: text("thumbnail_key"),
     isFavorite: boolean("is_favorite").notNull().default(false),
+    takenAt: ts(), // EXIF date-taken for images (null otherwise)
+    metadata: jsonb("metadata").$type<ImageMeta>(), // EXIF for images
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: ts(), // soft-delete → trash

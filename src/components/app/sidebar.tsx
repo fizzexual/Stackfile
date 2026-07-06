@@ -7,6 +7,7 @@ import {
   Clock,
   Files,
   HardDrive,
+  Image as ImageIcon,
   Link2,
   ShieldCheck,
   Star,
@@ -19,6 +20,7 @@ import { formatBytes } from "@/lib/files/format";
 
 const primary = [
   { href: "/files", label: "All files", icon: Files, enabled: true },
+  { href: "/photos", label: "Photos", icon: ImageIcon, enabled: true },
   { href: "/favorites", label: "Favorites", icon: Star, enabled: true },
   { href: "/recent", label: "Recent", icon: Clock, enabled: true },
 ];
