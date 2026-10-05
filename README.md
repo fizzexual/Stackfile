@@ -1,6 +1,6 @@
 <div align="center">
 
-# 📦 Stackfile
+# 📦 Stackfile 🌱
 
 ### Self-hosted file storage, reimagined.
 
@@ -18,6 +18,14 @@ files from **your own server**. Nextcloud-inspired, rebuilt from scratch on a
 [Quick start](#-quick-start) · [Self-hosting](#-self-hosting) · [Architecture](ARCHITECTURE.md) · [Roadmap](#-roadmap)
 
 </div>
+
+## About
+
+Stackfile is a self-hosted cloud drive: a single Next.js service backed by PostgreSQL that stores your
+files on your own disk and lets you browse, share and mount them over WebDAV. It is for individuals and
+small teams who want their own file storage without running a full Nextcloud install. The core phases
+(files, sharing, admin, 2FA/OAuth, search, WebDAV) are built; passkeys, versioning and content search
+are still on the roadmap, and there are no tagged releases yet.
 
 ---
 
